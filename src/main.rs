@@ -45,6 +45,7 @@ fn create_menu_dialog(prefs: PrefRef) -> Dialog {
         .on_submit(move |c, item| {
             let prefs = prefs.clone();
             match item {
+                1 => c.add_layer(create_issue_input_dialog(prefs.clone()).fixed_width(WIDTH)),
                 2 => c.add_layer(
                     create_time_log_dialog(
                         prefs.clone(),
@@ -65,6 +66,18 @@ fn create_menu_dialog(prefs: PrefRef) -> Dialog {
         });
 
     Dialog::around(menu).title("Jogger")
+}
+
+fn create_issue_input_dialog(prefs:PrefRef) -> Dialog {
+    let view = LinearLayout::horizontal()
+    .child(TextView::new("Issue Number: "))
+    .child(EditView::new().with_name("issue").full_width());
+    
+    Dialog::around(view).button("Continue", move |c| {
+        let issue = c.find_name::<EditView>("issue").unwrap().get_content();
+        c.pop_layer();
+        c.add_layer(create_time_log_dialog(prefs.clone(), Some(&format!("Logging Time for {issue}")), issue.to_string()).fixed_width(WIDTH));
+    })
 }
 
 fn create_time_log_dialog(prefs: PrefRef, title: Option<&str>, issue: String) -> Dialog {
