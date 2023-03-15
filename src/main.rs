@@ -1,17 +1,18 @@
 mod categories;
+mod jira;
 mod preferences;
 mod time;
 
 use categories::categories;
 use cursive::theme::BaseColor::Green;
 use cursive::theme::Color::Dark;
-use std::cell::RefCell;
-use std::rc::Rc;
-
 use cursive::view::{Nameable, Resizable};
 use cursive::views::{Dialog, EditView, LinearLayout, Panel, SelectView, TextView, ViewRef};
 use cursive::{Cursive, CursiveExt};
+use jira::{submit_timelog, TimeLog};
 use preferences::Preferences;
+use std::cell::RefCell;
+use std::rc::Rc;
 
 const WIDTH: usize = 86;
 
@@ -45,8 +46,12 @@ fn create_menu_dialog(prefs: PrefRef) -> Dialog {
             let prefs = prefs.clone();
             match item {
                 2 => c.add_layer(
-                    create_time_log_dialog(prefs, Some("Log Personal Distraction"))
-                        .fixed_width(WIDTH),
+                    create_time_log_dialog(
+                        prefs.clone(),
+                        Some("Log Personal Distraction"),
+                        prefs.borrow().personal_distraction.clone(),
+                    )
+                    .fixed_width(WIDTH),
                 ),
                 3 => c.add_layer(create_setup_dialog(prefs).fixed_width(WIDTH)),
                 4 => c.quit(),
@@ -62,13 +67,13 @@ fn create_menu_dialog(prefs: PrefRef) -> Dialog {
     Dialog::around(menu).title("Jogger")
 }
 
-fn create_time_log_dialog(_: PrefRef, title: Option<&str>) -> Dialog {
+fn create_time_log_dialog(prefs: PrefRef, title: Option<&str>, issue: String) -> Dialog {
     let mut categories_view = SelectView::new();
     for category in categories().keys().into_iter() {
         categories_view.add_item_str(*category);
     }
     categories_view.set_on_select(|c, item| {
-        let mut action_view = c.find_name("actions").unwrap() as ViewRef<SelectView>;
+        let mut action_view = c.find_name::<SelectView>("action").unwrap();
         action_view.clear();
         let actions: Vec<&str> = categories()
             .get(item.as_str())
@@ -85,7 +90,7 @@ fn create_time_log_dialog(_: PrefRef, title: Option<&str>) -> Dialog {
         .child(
             LinearLayout::horizontal()
                 .child(Panel::new(categories_view.with_name("category")).fixed_width(WIDTH / 2))
-                .child(Panel::new(actions_view.with_name("actions")).fixed_width(WIDTH / 2)),
+                .child(Panel::new(actions_view.with_name("action")).fixed_width(WIDTH / 2)),
         )
         .child(
             LinearLayout::horizontal()
@@ -95,21 +100,58 @@ fn create_time_log_dialog(_: PrefRef, title: Option<&str>) -> Dialog {
         .child(
             LinearLayout::horizontal()
                 .child(TextView::new("Comment: "))
-                .child(EditView::new().full_width().with_name("comment")),
+                .child(EditView::new().with_name("comment").full_width()),
         );
 
     Dialog::around(view)
         .title(title.unwrap_or("Create Time Log"))
-        .button("Submit", |c| {
+        .button("Submit", move |c| {
+            let category = c
+                .find_name::<SelectView>("category")
+                .unwrap()
+                .selection()
+                .unwrap_or_default();
+            let action = c
+                .find_name::<SelectView>("action")
+                .unwrap()
+                .selection()
+                .unwrap_or_default();
+            let comment = c.find_name::<EditView>("comment").unwrap().get_content();
+
+            let body = format!("{category}:{action}::{comment}");
+
             let time_input: ViewRef<EditView> = c.find_name("time").unwrap();
             match time::string_to_seconds(time_input.get_content().as_str()) {
-                Ok(time) => c.add_layer(Dialog::around(TextView::new(format!("Logging {time} seconds"))).button(
-                    "Okay",
-                    |c| {
-                        c.pop_layer();
-                        c.pop_layer();
-                    },
-                )),
+                Ok(time) => {
+                    c.add_layer(Dialog::around(TextView::new("Uploading...")));
+                    let prefs = prefs.borrow();
+
+                    match submit_timelog(&TimeLog {
+                        time_spent_seconds: time,
+                        comment: body,
+                        ticket_number: issue.to_string(),
+                        url: prefs.jira_url.to_string(),
+                        api_key: prefs.api_key.to_string(),
+                    }) {
+                        Ok(_) => c.add_layer(
+                            Dialog::around(TextView::new(format!("Successful"))).button(
+                                "Okay",
+                                |c| {
+                                    c.pop_layer();
+                                    c.pop_layer();
+                                    c.pop_layer();
+                                },
+                            ),
+                        ),
+                        Err(err) => c.add_layer(
+                            Dialog::around(TextView::new(format!("ERROR: {}", err.mgs())))
+                            .button("Okay", |c| {
+                                    c.pop_layer();
+                                    c.pop_layer();
+                                }),
+                        ),
+                    };
+                }
                 Err(err) => c.add_layer(
                     Dialog::around(TextView::new(format!("ERROR: {}", err.msg()))).button(
                         "Okay",
@@ -157,6 +199,16 @@ fn create_setup_dialog(prefs: PrefRef) -> Dialog {
                         .with_name("personal_distraction")
                         .full_width(),
                 ),
+        )
+        .child(
+            LinearLayout::horizontal()
+                .child(TextView::new("Jira API URL: "))
+                .child(
+                    EditView::new()
+                        .content(&prefs.borrow().jira_url)
+                        .with_name("jira_url")
+                        .full_width(),
+                ),
         );
 
     Dialog::around(layout)
@@ -166,12 +218,14 @@ fn create_setup_dialog(prefs: PrefRef) -> Dialog {
             let api_key = &*(c.find_name("api_key").unwrap() as ViewRef<EditView>).get_content();
             let personal_distraction =
                 &*(c.find_name("personal_distraction").unwrap() as ViewRef<EditView>).get_content();
+            let jira_url = &*(c.find_name("jira_url").unwrap() as ViewRef<EditView>).get_content();
 
             prefs
                 .borrow_mut()
                 .set_name(name)
                 .set_api_key(api_key)
-                .set_personal_distraction(personal_distraction);
+                .set_personal_distraction(personal_distraction)
+                .set_jira_url(jira_url);
 
             match prefs.clone().borrow().save() {
                 Ok(_) => {

@@ -11,11 +11,12 @@ pub struct Preferences {
     pub name: String,
     pub api_key: String,
     pub personal_distraction: String,
+    pub jira_url: String,
 }
 
 impl Preferences {
     pub fn new() -> Self {
-        Preferences { name: String::new(), api_key: String::new(), personal_distraction: String::new() }
+        Preferences { name: String::new(), api_key: String::new(), personal_distraction: String::new(), jira_url: String::new() }
     }
 
     pub fn load() -> Result<Self, Error> {
@@ -26,6 +27,7 @@ impl Preferences {
                 ("NAME", name) => {prefs.set_name(name);},
                 ("API_KEY", api_key) => {prefs.set_api_key(api_key);},
                 ("PERSONAL_DISTRACTION", personal_distraction) => {prefs.set_personal_distraction(personal_distraction);},
+                ("JIRA_URL", jira_url) => {prefs.set_jira_url(jira_url);},
                 _ => {}
             }
         };
@@ -48,6 +50,11 @@ impl Preferences {
         self
     }
 
+    pub fn set_jira_url(&mut self, jira_url: &str) -> &mut Self {
+        self.jira_url = jira_url.to_string();
+        self
+    }
+
     pub fn save(&self) -> Result<(), Error> {
         let path = home_dir().unwrap_or_default().join(".config");
         std::fs::create_dir_all(&path)?;
@@ -61,6 +68,7 @@ impl std::fmt::Display for Preferences {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "NAME={}", self.name)?;
         writeln!(f, "API_KEY={}", self.api_key)?;
-        writeln!(f, "PERSONAL_DISTRACTION={}", self.personal_distraction)
+        writeln!(f, "PERSONAL_DISTRACTION={}", self.personal_distraction)?;
+        writeln!(f, "JIRA_URL={}", self.jira_url)
     }
 }
