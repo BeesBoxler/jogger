@@ -1,7 +1,10 @@
 [package]
-name = "time-logger"
+name = "jogger"
 version = "0.1.0"
 edition = "2021"
+description = "A TUI time logging tool for jira"
+repository = "https://github.com/BeesBoxler/jogger/"
+license = "MIT"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

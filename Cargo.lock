@@ -507,6 +507,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "453ad9f582a441959e5f0d088b02ce04cfe8d51a8eaf077f12ac6d3e94164ca6"
 
 [[package]]
+name = "jogger"
+version = "0.1.0"
+dependencies = [
+ "cursive",
+ "regex",
+ "reqwest",
+ "time",
+]
+
+[[package]]
 name = "js-sys"
 version = "0.3.61"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1026,16 +1036,6 @@ name = "time-core"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2e153e1f1acaef8acc537e68b44906d2db6436e2b35ac2c6b42640fff91f00fd"
-
-[[package]]
-name = "time-logger"
-version = "0.1.0"
-dependencies = [
- "cursive",
- "regex",
- "reqwest",
- "time",
-]
 
 [[package]]
 name = "time-macros"
