@@ -1,5 +1,6 @@
 mod categories;
 mod preferences;
+mod time;
 
 use categories::categories;
 use cursive::theme::BaseColor::Green;
@@ -43,10 +44,10 @@ fn create_menu_dialog(prefs: PrefRef) -> Dialog {
         .on_submit(move |c, item| {
             let prefs = prefs.clone();
             match item {
-                2 => c.add_layer(create_time_log_dialog(
-                    prefs,
-                    Some("Log Personal Distraction"),
-                ).fixed_width(WIDTH)),
+                2 => c.add_layer(
+                    create_time_log_dialog(prefs, Some("Log Personal Distraction"))
+                        .fixed_width(WIDTH),
+                ),
                 3 => c.add_layer(create_setup_dialog(prefs).fixed_width(WIDTH)),
                 4 => c.quit(),
                 _ => c.add_layer(
@@ -88,13 +89,37 @@ fn create_time_log_dialog(_: PrefRef, title: Option<&str>) -> Dialog {
         )
         .child(
             LinearLayout::horizontal()
+                .child(TextView::new("Time: "))
+                .child(EditView::new().with_name("time").full_width()),
+        )
+        .child(
+            LinearLayout::horizontal()
                 .child(TextView::new("Comment: "))
-                .child(EditView::new().full_width()),
+                .child(EditView::new().full_width().with_name("comment")),
         );
 
     Dialog::around(view)
         .title(title.unwrap_or("Create Time Log"))
-        .button("Submit", |_| ())
+        .button("Submit", |c| {
+            let time_input: ViewRef<EditView> = c.find_name("time").unwrap();
+            match time::string_to_seconds(time_input.get_content().as_str()) {
+                Ok(time) => c.add_layer(Dialog::around(TextView::new(format!("Logging {time} seconds"))).button(
+                    "Okay",
+                    |c| {
+                        c.pop_layer();
+                        c.pop_layer();
+                    },
+                )),
+                Err(err) => c.add_layer(
+                    Dialog::around(TextView::new(format!("ERROR: {}", err.msg()))).button(
+                        "Okay",
+                        |c| {
+                            c.pop_layer();
+                        },
+                    ),
+                ),
+            };
+        })
         .button("Cancel", |c| {
             c.pop_layer();
         })
