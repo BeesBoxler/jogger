@@ -1,10 +1,8 @@
-use std::collections::HashMap;
-
-pub fn categories() -> HashMap<&'static str, Vec<&'static str>> {
-    let mut categories = HashMap::new();
-    categories.insert("None", vec![]);
-    categories.insert("Assistance", vec!["Development", "Testing"]);
-    categories.insert(
+pub fn categories() -> Vec<(&'static str, Vec<&'static str>)> {
+    let mut categories = vec![];
+    categories.push(("None", vec![]));
+    categories.push(("Assistance", vec!["Development", "Testing"]));
+    categories.push((
         "Business Analyst",
         vec![
             "Requirements Gathering",
@@ -13,12 +11,12 @@ pub fn categories() -> HashMap<&'static str, Vec<&'static str>> {
             "Ticket Creation",
             "UAT",
         ],
-    );
-    categories.insert(
+    ));
+    categories.push((
         "Development",
         vec!["Development on Task", "Technical Investigation"],
-    );
-    categories.insert(
+    ));
+    categories.push((
         "Personal Distraction",
         vec![
             "Mentoring",
@@ -35,13 +33,13 @@ pub fn categories() -> HashMap<&'static str, Vec<&'static str>> {
             "Fire Alarm/Evacuation",
             "Task Request From Manager",
         ],
-    );
-    categories.insert(
+    ));
+    categories.push((
         "Project Management",
         vec!["Project Planning", "Project Reporting"],
-    );
-    categories.insert("Spike", vec!["Investigation", "Building Proof of Concept"]);
-    categories.insert(
+    ));
+    categories.push(("Spike", vec!["Investigation", "Building Proof of Concept"]));
+    categories.push((
         "Team Project Task",
         vec![
             "Peer Review (Code/Test)",
@@ -57,8 +55,8 @@ pub fn categories() -> HashMap<&'static str, Vec<&'static str>> {
             "Documentation",
             "Tech Review Meeting",
         ],
-    );
-    categories.insert(
+    ));
+    categories.push((
         "Testing",
         vec![
             "Test Planning",
@@ -67,7 +65,7 @@ pub fn categories() -> HashMap<&'static str, Vec<&'static str>> {
             "Test Creation",
             "Test Maintenance",
         ],
-    );
+    ));
 
     categories
 }

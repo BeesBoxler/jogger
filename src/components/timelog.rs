@@ -1,7 +1,7 @@
 use cursive::{
     view::{Nameable, Resizable},
     views::{Dialog, EditView, LinearLayout, Panel, SelectView, TextView, ViewRef},
-    View,
+    Cursive, View,
 };
 
 use crate::{
@@ -11,23 +11,31 @@ use crate::{
     time,
 };
 
+fn submit(c: &mut Cursive, prefs: PrefRef, width: usize) {
+    let issue = c.find_name::<EditView>("issue").unwrap().get_content();
+    c.pop_layer();
+    c.add_layer(create_time_log_dialog(
+        prefs.clone(),
+        Some(&format!("Logging Time for {issue}")),
+        issue.to_string(),
+        width.clone(),
+    ));
+}
+
 pub fn create_issue_input_dialog(prefs: PrefRef, width: usize) -> Box<dyn View> {
+    let p = prefs.clone();
     let view = LinearLayout::horizontal()
         .child(TextView::new("Issue Number: "))
-        .child(EditView::new().with_name("issue").full_width());
+        .child(
+            EditView::new()
+                .on_submit(move |c, _| submit(c, p.clone(), width))
+                .with_name("issue")
+                .full_width(),
+        );
 
     Box::from(
         Dialog::around(view)
-            .button("Continue", move |c| {
-                let issue = c.find_name::<EditView>("issue").unwrap().get_content();
-                c.pop_layer();
-                c.add_layer(create_time_log_dialog(
-                    prefs.clone(),
-                    Some(&format!("Logging Time for {issue}")),
-                    issue.to_string(),
-                    width,
-                ));
-            })
+            .button("Continue", move |c| submit(c, prefs.clone(), width))
             .fixed_width(width),
     )
 }
@@ -39,18 +47,15 @@ pub fn create_time_log_dialog(
     width: usize,
 ) -> Box<dyn View> {
     let mut categories_view = SelectView::new();
-    for category in categories().keys().into_iter() {
-        categories_view.add_item_str(*category);
-    }
+    categories()
+        .iter()
+        .enumerate()
+        .for_each(|(i, c)| categories_view.add_item(c.0, i));
+
     categories_view.set_on_select(|c, item| {
         let mut action_view = c.find_name::<SelectView>("action").unwrap();
         action_view.clear();
-        let actions: Vec<&str> = categories()
-            .get(item.as_str())
-            .unwrap()
-            .iter()
-            .map(|v| *v)
-            .collect();
+        let actions: Vec<&str> = categories()[*item].1.iter().map(|v| *v).collect();
         action_view.add_all_str(actions);
     });
 
@@ -59,8 +64,16 @@ pub fn create_time_log_dialog(
     let view = LinearLayout::vertical()
         .child(
             LinearLayout::horizontal()
-                .child(Panel::new(categories_view.with_name("category")).fixed_width(width / 2))
-                .child(Panel::new(actions_view.with_name("action")).fixed_width(width / 2)),
+                .child(
+                    Panel::new(categories_view.with_name("category"))
+                        .fixed_width(width / 2)
+                        .fixed_height(15),
+                )
+                .child(
+                    Panel::new(actions_view.with_name("action"))
+                        .fixed_width(width / 2)
+                        .fixed_height(15),
+                ),
         )
         .child(
             LinearLayout::horizontal()
