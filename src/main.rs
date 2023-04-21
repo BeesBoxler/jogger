@@ -1,3 +1,4 @@
+pub mod b64;
 pub mod categories;
 pub mod components;
 pub mod jira;
