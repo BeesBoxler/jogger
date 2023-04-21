@@ -11,19 +11,20 @@ use crate::{
     time,
 };
 
-fn submit(c: &mut Cursive, prefs: PrefRef, width: usize) {
-    let issue = c.find_name::<EditView>("issue").unwrap().get_content();
-    c.pop_layer();
-    c.add_layer(create_time_log_dialog(
-        prefs.clone(),
-        Some(&format!("Logging Time for {issue}")),
-        issue.to_string(),
-        width.clone(),
-    ));
-}
-
 pub fn create_issue_input_dialog(prefs: PrefRef, width: usize) -> Box<dyn View> {
     let p = prefs.clone();
+
+    let submit = |c: &mut Cursive, prefs: PrefRef, width: usize| {
+        let issue = c.find_name::<EditView>("issue").unwrap().get_content();
+        c.pop_layer();
+        c.add_layer(create_time_log_dialog(
+            prefs.clone(),
+            Some(&format!("Logging Time for {issue}")),
+            issue.to_string(),
+            width.clone(),
+        ));
+    };
+
     let view = LinearLayout::horizontal()
         .child(TextView::new("Issue Number: "))
         .child(
@@ -61,6 +62,9 @@ pub fn create_time_log_dialog(
 
     let actions_view = SelectView::new().item_str("Please Select a Category");
 
+    let i = issue.clone();
+    let p = prefs.clone();
+
     let view = LinearLayout::vertical()
         .child(
             LinearLayout::horizontal()
@@ -78,7 +82,12 @@ pub fn create_time_log_dialog(
         .child(
             LinearLayout::horizontal()
                 .child(TextView::new("Time: "))
-                .child(EditView::new().with_name("time").full_width()),
+                .child(
+                    EditView::new()
+                        .on_submit(move |c, _| submit_time_log(c, p.clone(), i.clone()))
+                        .with_name("time")
+                        .full_width(),
+                ),
         )
         .child(
             LinearLayout::horizontal()
@@ -90,65 +99,66 @@ pub fn create_time_log_dialog(
         Dialog::around(view)
             .title(title.unwrap_or("Create Time Log"))
             .button("Submit", move |c| {
-                let category = c
-                    .find_name::<SelectView>("category")
-                    .unwrap()
-                    .selection()
-                    .unwrap_or_default();
-                let action = c
-                    .find_name::<SelectView>("action")
-                    .unwrap()
-                    .selection()
-                    .unwrap_or_default();
-                let comment = c.find_name::<EditView>("comment").unwrap().get_content();
-
-                let body = format!("{category}:{action}::{comment}");
-
-                let time_input: ViewRef<EditView> = c.find_name("time").unwrap();
-                match time::string_to_seconds(time_input.get_content().as_str()) {
-                    Ok(time) => {
-                        c.add_layer(Dialog::around(TextView::new("Uploading...")));
-                        let prefs = prefs.borrow();
-
-                        match submit_timelog(&TimeLog {
-                            time_spent_seconds: time,
-                            comment: body,
-                            ticket_number: issue.to_string(),
-                            url: prefs.jira_url.to_string(),
-                            api_key: prefs.api_key.to_string(),
-                        }) {
-                            Ok(_) => c.add_layer(
-                                Dialog::around(TextView::new(format!("Successful"))).button(
-                                    "Okay",
-                                    |c| {
-                                        c.pop_layer();
-                                        c.pop_layer();
-                                        c.pop_layer();
-                                    },
-                                ),
-                            ),
-                            Err(err) => c.add_layer(
-                                Dialog::around(TextView::new(format!("ERROR: {}", err.mgs())))
-                                    .button("Okay", |c| {
-                                        c.pop_layer();
-                                        c.pop_layer();
-                                    }),
-                            ),
-                        };
-                    }
-                    Err(err) => c.add_layer(
-                        Dialog::around(TextView::new(format!("ERROR: {}", err.msg()))).button(
-                            "Okay",
-                            |c| {
-                                c.pop_layer();
-                            },
-                        ),
-                    ),
-                };
+                submit_time_log(c, prefs.clone(), issue.clone())
             })
             .button("Cancel", |c| {
                 c.pop_layer();
             })
             .fixed_width(width),
     )
+}
+
+fn submit_time_log(c: &mut Cursive, prefs: PrefRef, issue: String) {
+    let category = c
+        .find_name::<SelectView>("category")
+        .unwrap()
+        .selection()
+        .unwrap_or_default();
+    let action = c
+        .find_name::<SelectView>("action")
+        .unwrap()
+        .selection()
+        .unwrap_or_default();
+    let comment = c.find_name::<EditView>("comment").unwrap().get_content();
+
+    let body = format!("{category}:{action}::{comment}");
+
+    let time_input: ViewRef<EditView> = c.find_name("time").unwrap();
+    match time::string_to_seconds(time_input.get_content().as_str()) {
+        Ok(time) => {
+            c.add_layer(Dialog::around(TextView::new("Uploading...")));
+            let prefs = prefs.borrow();
+
+            match submit_timelog(&TimeLog {
+                time_spent_seconds: time,
+                comment: body,
+                ticket_number: issue.to_string(),
+                url: prefs.jira_url.to_string(),
+                api_key: prefs.api_key.to_string(),
+            }) {
+                Ok(_) => c.add_layer(Dialog::around(TextView::new(format!("Successful"))).button(
+                    "Okay",
+                    |c| {
+                        c.pop_layer();
+                        c.pop_layer();
+                        c.pop_layer();
+                    },
+                )),
+                Err(err) => c.add_layer(
+                    Dialog::around(TextView::new(format!("ERROR: {}", err.mgs()))).button(
+                        "Okay",
+                        |c| {
+                            c.pop_layer();
+                            c.pop_layer();
+                        },
+                    ),
+                ),
+            };
+        }
+        Err(err) => c.add_layer(
+            Dialog::around(TextView::new(format!("ERROR: {}", err.msg()))).button("Okay", |c| {
+                c.pop_layer();
+            }),
+        ),
+    };
 }
