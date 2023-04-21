@@ -48,15 +48,18 @@ pub fn create_time_log_dialog(
     width: usize,
 ) -> Box<dyn View> {
     let mut categories_view = SelectView::new();
-    categories()
+    let categories = categories();
+    let height = categories.iter().map(|c|c.1.len()).max().unwrap() + 2;
+    
+    categories
         .iter()
         .enumerate()
         .for_each(|(i, c)| categories_view.add_item(c.0, i));
 
-    categories_view.set_on_select(|c, item| {
+    categories_view.set_on_select(move |c, item| {
         let mut action_view = c.find_name::<SelectView>("action").unwrap();
         action_view.clear();
-        let actions: Vec<&str> = categories()[*item].1.iter().map(|v| *v).collect();
+        let actions: Vec<&str> = categories[*item].1.iter().map(|v| *v).collect();
         action_view.add_all_str(actions);
     });
 
@@ -71,12 +74,12 @@ pub fn create_time_log_dialog(
                 .child(
                     Panel::new(categories_view.with_name("category"))
                         .fixed_width(width / 2)
-                        .fixed_height(15),
+                        .fixed_height(height),
                 )
                 .child(
                     Panel::new(actions_view.with_name("action"))
                         .fixed_width(width / 2)
-                        .fixed_height(15),
+                        .fixed_height(height),
                 ),
         )
         .child(
