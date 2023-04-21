@@ -49,8 +49,8 @@ pub fn create_time_log_dialog(
 ) -> Box<dyn View> {
     let mut categories_view = SelectView::new();
     let categories = categories();
-    let height = categories.iter().map(|c|c.1.len()).max().unwrap() + 2;
-    
+    let height = categories.iter().map(|c| c.1.len()).max().unwrap() + 2;
+
     categories
         .iter()
         .enumerate()
@@ -112,11 +112,11 @@ pub fn create_time_log_dialog(
 }
 
 fn submit_time_log(c: &mut Cursive, prefs: PrefRef, issue: String) {
-    let category = c
-        .find_name::<SelectView>("category")
-        .unwrap()
-        .selection()
-        .unwrap_or_default();
+    let category_view = c.find_name::<SelectView<usize>>("category").unwrap();
+    let category = category_view
+        .get_item(*category_view.selection().unwrap())
+        .unwrap_or(("", &0))
+        .0;
     let action = c
         .find_name::<SelectView>("action")
         .unwrap()
