@@ -23,7 +23,11 @@ pub fn string_to_seconds(time: &str) -> Result<usize, Error> {
             seconds += (parse_match(result.get(3)) * MINUTE).floor() as usize;
             seconds += (parse_match(result.get(4)) * HOUR).floor() as usize;
         }
-        None => return Err(Error(format!("Time could not be parsed from string `{time}`"))),
+        None => {
+            return Err(Error(format!(
+                "Time could not be parsed from string `{time}`"
+            )))
+        }
     }
 
     Ok(seconds)

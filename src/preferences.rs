@@ -1,10 +1,12 @@
 #![allow(deprecated)]
 
-use std::io::Error;
 use std::env::home_dir;
-
+use std::io::Error;
+use std::{cell::RefCell, rc::Rc};
 
 const PREF_FILENAME: &str = "jogger.conf";
+
+pub type PrefRef = Rc<RefCell<Preferences>>;
 
 #[derive(Debug, Clone)]
 pub struct Preferences {
@@ -16,21 +18,39 @@ pub struct Preferences {
 
 impl Preferences {
     pub fn new() -> Self {
-        Preferences { name: String::new(), api_key: String::new(), personal_distraction: String::new(), jira_url: String::new() }
+        Preferences {
+            name: String::new(),
+            api_key: String::new(),
+            personal_distraction: String::new(),
+            jira_url: String::new(),
+        }
     }
 
     pub fn load() -> Result<Self, Error> {
-        let input = std::fs::read_to_string(home_dir().unwrap_or_default().join(".config").join(PREF_FILENAME))?;
+        let input = std::fs::read_to_string(
+            home_dir()
+                .unwrap_or_default()
+                .join(".config")
+                .join(PREF_FILENAME),
+        )?;
         let mut prefs = Preferences::new();
         for line in input.lines() {
             match line.split_once("=").unwrap() {
-                ("NAME", name) => {prefs.set_name(name);},
-                ("API_KEY", api_key) => {prefs.set_api_key(api_key);},
-                ("PERSONAL_DISTRACTION", personal_distraction) => {prefs.set_personal_distraction(personal_distraction);},
-                ("JIRA_URL", jira_url) => {prefs.set_jira_url(jira_url);},
+                ("NAME", name) => {
+                    prefs.set_name(name);
+                }
+                ("API_KEY", api_key) => {
+                    prefs.set_api_key(api_key);
+                }
+                ("PERSONAL_DISTRACTION", personal_distraction) => {
+                    prefs.set_personal_distraction(personal_distraction);
+                }
+                ("JIRA_URL", jira_url) => {
+                    prefs.set_jira_url(jira_url);
+                }
                 _ => {}
             }
-        };
+        }
 
         Ok(prefs)
     }
