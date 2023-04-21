@@ -45,11 +45,11 @@ pub fn submit_timelog(log: &TimeLog) -> Result<(), Error> {
         .build()
         .unwrap();
 
-    return match client.execute(request) {
+    match client.execute(request) {
         Ok(response) => match response.status() {
             StatusCode::OK | StatusCode::CREATED => Ok(()),
             result => Err(Error(result.to_string())),
         },
         Err(err) => Err(Error(err.to_string())),
-    };
+    }
 }

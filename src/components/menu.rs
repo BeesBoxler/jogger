@@ -13,7 +13,7 @@ pub fn create_menu_dialog(prefs: PrefRef, width: usize) -> Box<dyn View> {
         .on_submit(move |c, item| {
             let prefs = prefs.clone();
             match item {
-                1 => c.add_layer(create_issue_input_dialog(prefs.clone(), width)),
+                1 => c.add_layer(create_issue_input_dialog(prefs, width)),
                 2 => c.add_layer(create_time_log_dialog(
                     prefs.clone(),
                     Some("Log Personal Distraction"),

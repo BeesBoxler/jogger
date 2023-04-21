@@ -35,7 +35,7 @@ impl Preferences {
         )?;
         let mut prefs = Preferences::new();
         for line in input.lines() {
-            match line.split_once("=").unwrap() {
+            match line.split_once('=').unwrap() {
                 ("NAME", name) => {
                     prefs.set_name(name);
                 }
@@ -81,6 +81,12 @@ impl Preferences {
         std::fs::write(path.join(PREF_FILENAME), format!("{self}").as_bytes())?;
 
         Ok(())
+    }
+}
+
+impl Default for Preferences {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

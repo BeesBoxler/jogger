@@ -1,7 +1,10 @@
 <h1 align="center">Jogger 🏃🏼‍♀️</h1>
 <p align="center">
-    <a href="https://github.com/BeesBoxler/jogger/actions/workflows/git-push.yaml" alt="Tests">
-        <img src="https://img.shields.io/github/actions/workflow/status/beesboxler/jogger/git-push.yaml?style=flat-square&label=tests" />
+    <a href="https://github.com/BeesBoxler/jogger/actions/workflows/run-tests.yaml" alt="Tests">
+        <img src="https://img.shields.io/github/actions/workflow/status/beesboxler/jogger/run-tests.yaml?style=flat-square&label=tests" />
+    </a>
+    <a href="https://github.com/BeesBoxler/jogger/actions/workflows/run-clippy.yaml" alt="Clippy">
+        <img src="https://img.shields.io/github/actions/workflow/status/beesboxler/jogger/run-clippy.yaml?style=flat-square&label=clippy" />
     </a>
     <a href="https://crates.io/crates/jogger" alt="Crates.io">
         <img src="https://img.shields.io/crates/v/jogger?style=flat-square" />

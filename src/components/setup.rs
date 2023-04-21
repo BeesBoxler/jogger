@@ -6,7 +6,6 @@ use cursive::{
 };
 
 pub fn create_setup_dialog(prefs: PrefRef, width: usize) -> Box<dyn View> {
-    let prefs = prefs.clone();
     let layout = LinearLayout::vertical()
         .child(
             LinearLayout::horizontal()
@@ -69,13 +68,13 @@ pub fn create_setup_dialog(prefs: PrefRef, width: usize) -> Box<dyn View> {
                     .set_personal_distraction(personal_distraction)
                     .set_jira_url(jira_url);
 
-                match prefs.clone().borrow().save() {
+                let prefs = prefs.borrow();
+                match prefs.save() {
                     Ok(_) => {
                         c.pop_layer();
                     }
                     Err(err) => c.add_layer(Dialog::around(TextView::new(format!(
-                        "An error occured: {}",
-                        err
+                        "An error occured: {err}"
                     )))),
                 }
             })

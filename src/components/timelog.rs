@@ -18,10 +18,10 @@ pub fn create_issue_input_dialog(prefs: PrefRef, width: usize) -> Box<dyn View> 
         let issue = c.find_name::<EditView>("issue").unwrap().get_content();
         c.pop_layer();
         c.add_layer(create_time_log_dialog(
-            prefs.clone(),
+            prefs,
             Some(&format!("Logging Time for {issue}")),
             issue.to_string(),
-            width.clone(),
+            width,
         ));
     };
 
@@ -59,7 +59,7 @@ pub fn create_time_log_dialog(
     categories_view.set_on_select(move |c, item| {
         let mut action_view = c.find_name::<SelectView>("action").unwrap();
         action_view.clear();
-        let actions: Vec<&str> = categories[*item].1.iter().map(|v| *v).collect();
+        let actions: Vec<&str> = categories[*item].1.to_vec();
         action_view.add_all_str(actions);
     });
 
@@ -135,18 +135,17 @@ fn submit_time_log(c: &mut Cursive, prefs: PrefRef, issue: String) {
             match submit_timelog(&TimeLog {
                 time_spent_seconds: time,
                 comment: body,
-                ticket_number: issue.to_string(),
+                ticket_number: issue,
                 url: prefs.jira_url.to_string(),
                 api_key: prefs.api_key.to_string(),
             }) {
-                Ok(_) => c.add_layer(Dialog::around(TextView::new(format!("Successful"))).button(
-                    "Okay",
-                    |c| {
+                Ok(_) => c.add_layer(
+                    Dialog::around(TextView::new("Successful".to_string())).button("Okay", |c| {
                         c.pop_layer();
                         c.pop_layer();
                         c.pop_layer();
-                    },
-                )),
+                    }),
+                ),
                 Err(err) => c.add_layer(
                     Dialog::around(TextView::new(format!("ERROR: {}", err.mgs()))).button(
                         "Okay",
