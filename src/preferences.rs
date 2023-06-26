@@ -1,19 +1,24 @@
 #![allow(deprecated)]
 
+use serde::{Deserialize, Serialize};
+
 use std::env::home_dir;
 use std::io::Error;
 use std::{cell::RefCell, rc::Rc};
+
+use crate::meeting_types::{seed_meeting_tickets, Project};
 
 const PREF_FILENAME: &str = "jogger.conf";
 
 pub type PrefRef = Rc<RefCell<Preferences>>;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Preferences {
     pub name: String,
     pub api_key: String,
     pub personal_distraction: String,
     pub jira_url: String,
+    pub custom_meetings: Vec<Project>,
 }
 
 impl Preferences {
@@ -23,6 +28,7 @@ impl Preferences {
             api_key: String::new(),
             personal_distraction: String::new(),
             jira_url: String::new(),
+            custom_meetings: seed_meeting_tickets(),
         }
     }
 
@@ -33,24 +39,33 @@ impl Preferences {
                 .join(".config")
                 .join(PREF_FILENAME),
         )?;
-        let mut prefs = Preferences::new();
-        for line in input.lines() {
-            match line.split_once('=').unwrap() {
-                ("NAME", name) => {
-                    prefs.set_name(name);
+
+        let prefs = match serde_json::from_str::<Preferences>(&input) {
+            Ok(p) => p,
+            Err(_) => {
+                let mut prefs = Preferences::new();
+                for line in input.lines() {
+                    match line.split_once('=').unwrap() {
+                        ("NAME", name) => {
+                            prefs.set_name(name);
+                        }
+                        ("API_KEY", api_key) => {
+                            prefs.set_api_key(api_key);
+                        }
+                        ("PERSONAL_DISTRACTION", personal_distraction) => {
+                            prefs.set_personal_distraction(personal_distraction);
+                        }
+                        ("JIRA_URL", jira_url) => {
+                            prefs.set_jira_url(jira_url);
+                        }
+                        _ => {}
+                    }
                 }
-                ("API_KEY", api_key) => {
-                    prefs.set_api_key(api_key);
-                }
-                ("PERSONAL_DISTRACTION", personal_distraction) => {
-                    prefs.set_personal_distraction(personal_distraction);
-                }
-                ("JIRA_URL", jira_url) => {
-                    prefs.set_jira_url(jira_url);
-                }
-                _ => {}
+                Self::backup().ok();
+                prefs.save()?;
+                prefs
             }
-        }
+        };
 
         Ok(prefs)
     }
@@ -78,7 +93,20 @@ impl Preferences {
     pub fn save(&self) -> Result<(), Error> {
         let path = home_dir().unwrap_or_default().join(".config");
         std::fs::create_dir_all(&path)?;
-        std::fs::write(path.join(PREF_FILENAME), format!("{self}").as_bytes())?;
+        std::fs::write(
+            path.join(PREF_FILENAME),
+            serde_json::to_string_pretty(self)?,
+        )?;
+
+        Ok(())
+    }
+
+    fn backup() -> Result<(), Error> {
+        let path = home_dir().unwrap_or_default().join(".config");
+        std::fs::copy(
+            path.join(PREF_FILENAME),
+            path.join(format!("{PREF_FILENAME}.bak")),
+        )?;
 
         Ok(())
     }
@@ -87,14 +115,5 @@ impl Preferences {
 impl Default for Preferences {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-impl std::fmt::Display for Preferences {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "NAME={}", self.name)?;
-        writeln!(f, "API_KEY={}", self.api_key)?;
-        writeln!(f, "PERSONAL_DISTRACTION={}", self.personal_distraction)?;
-        writeln!(f, "JIRA_URL={}", self.jira_url)
     }
 }

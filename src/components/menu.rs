@@ -1,4 +1,4 @@
-use crate::components::{create_issue_input_dialog, create_setup_dialog, create_time_log_dialog};
+use crate::components::{create_issue_input_dialog, create_meetings_dialog, create_setup_dialog};
 use crate::preferences::PrefRef;
 use cursive::view::Resizable;
 use cursive::views::{Dialog, SelectView, TextView};
@@ -14,7 +14,7 @@ pub fn create_menu_dialog(prefs: PrefRef, width: usize) -> Box<dyn View> {
             let prefs = prefs.clone();
             match item {
                 1 => c.add_layer(create_issue_input_dialog(prefs, width)),
-                2 => c.add_layer(create_time_log_dialog(
+                2 => c.add_layer(create_meetings_dialog(
                     prefs.clone(),
                     Some("Log Personal Distraction"),
                     prefs.borrow().personal_distraction.clone(),

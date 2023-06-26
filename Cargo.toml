@@ -1,6 +1,6 @@
 [package]
 name = "jogger"
-version = "0.1.4"
+version = "0.2.0"
 edition = "2021"
 description = "A TUI time logging tool for jira"
 repository = "https://github.com/BeesBoxler/jogger/"
@@ -12,4 +12,6 @@ license = "MIT"
 cursive = "0.20.0"
 regex = "1.7.1"
 reqwest = { version = "0.11.14", features = ["json", "blocking"] }
+serde = { version = "1.0.164", features = ["derive"] }
+serde_json = "1.0.99"
 time = { version = "0.3.20", features = ["macros"] }

@@ -1,6 +1,6 @@
-pub mod categories;
 pub mod components;
 pub mod jira;
+pub mod meeting_types;
 pub mod preferences;
 pub mod time;
 
