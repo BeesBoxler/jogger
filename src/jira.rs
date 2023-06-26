@@ -1,5 +1,8 @@
+use b64_rs::encode;
 use reqwest::{blocking::Client, Method, StatusCode};
 use time::{macros::format_description, OffsetDateTime};
+
+use crate::preferences::{PrefRef, Preferences};
 
 pub struct Error(String);
 
@@ -13,12 +16,21 @@ pub struct TimeLog {
     pub time_spent_seconds: usize,
     pub comment: String,
     pub ticket_number: String,
-    pub url: String,
-    pub api_key: String,
+    pub prefs: PrefRef,
 }
 
 pub fn submit_timelog(log: &TimeLog) -> Result<(), Error> {
-    let url = format!("{}/rest/api/2/issue/{}/worklog", log.url, log.ticket_number);
+    let Preferences {
+        jira_url,
+        email,
+        api_key,
+        ..
+    } = log.prefs.clone().take();
+
+    let url = format!(
+        "{}/rest/api/2/issue/{}/worklog",
+        jira_url, log.ticket_number
+    );
     let client = Client::new();
 
     let data = format!(
@@ -36,9 +48,11 @@ pub fn submit_timelog(log: &TimeLog) -> Result<(), Error> {
             .unwrap()
     );
 
+    let credentials = format!("Basic {}", encode(&format!("{}:{}", email, api_key)));
+
     let request = client
         .request(Method::POST, url)
-        .bearer_auth(&log.api_key)
+        .header("Authorization", credentials)
         .header("Content-Type", "application/json")
         .header("Accept", "application/json")
         .body(data)

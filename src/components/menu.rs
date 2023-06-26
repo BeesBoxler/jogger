@@ -15,9 +15,8 @@ pub fn create_menu_dialog(prefs: PrefRef, width: usize) -> Box<dyn View> {
             match item {
                 1 => c.add_layer(create_issue_input_dialog(prefs, width)),
                 2 => c.add_layer(create_meetings_dialog(
-                    prefs.clone(),
+                    prefs,
                     Some("Log Personal Distraction"),
-                    prefs.borrow().personal_distraction.clone(),
                     width,
                 )),
                 3 => c.add_layer(create_setup_dialog(prefs, width)),

@@ -15,8 +15,8 @@ pub type PrefRef = Rc<RefCell<Preferences>>;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Preferences {
     pub name: String,
+    pub email: String,
     pub api_key: String,
-    pub personal_distraction: String,
     pub jira_url: String,
     pub custom_meetings: Vec<Project>,
 }
@@ -25,8 +25,8 @@ impl Preferences {
     pub fn new() -> Self {
         Preferences {
             name: String::new(),
+            email: String::new(),
             api_key: String::new(),
-            personal_distraction: String::new(),
             jira_url: String::new(),
             custom_meetings: seed_meeting_tickets(),
         }
@@ -52,12 +52,6 @@ impl Preferences {
                         ("API_KEY", api_key) => {
                             prefs.set_api_key(api_key);
                         }
-                        ("PERSONAL_DISTRACTION", personal_distraction) => {
-                            prefs.set_personal_distraction(personal_distraction);
-                        }
-                        ("JIRA_URL", jira_url) => {
-                            prefs.set_jira_url(jira_url);
-                        }
                         _ => {}
                     }
                 }
@@ -75,13 +69,13 @@ impl Preferences {
         self
     }
 
-    pub fn set_personal_distraction(&mut self, personal_distraction: &str) -> &mut Self {
-        self.personal_distraction = personal_distraction.to_string();
+    pub fn set_api_key(&mut self, api_key: &str) -> &mut Self {
+        self.api_key = api_key.to_string();
         self
     }
 
-    pub fn set_api_key(&mut self, api_key: &str) -> &mut Self {
-        self.api_key = api_key.to_string();
+    pub fn set_email(&mut self, email: &str) -> &mut Self {
+        self.email = email.to_string();
         self
     }
 

@@ -20,7 +20,7 @@ pub fn create_issue_input_dialog(prefs: PrefRef, width: usize) -> Box<dyn View> 
         c.add_layer(create_looging_dialog(
             prefs,
             Some(&format!("Logging Time for {issue}")),
-            issue.to_string(),
+            Some(issue.to_string()),
             width,
             None,
         ));
@@ -42,31 +42,38 @@ pub fn create_issue_input_dialog(prefs: PrefRef, width: usize) -> Box<dyn View> 
     )
 }
 
-pub fn create_meetings_dialog(
-    prefs: PrefRef,
-    title: Option<&str>,
-    issue: String,
-    width: usize,
-) -> Box<dyn View> {
+pub fn create_meetings_dialog(prefs: PrefRef, title: Option<&str>, width: usize) -> Box<dyn View> {
     let mut projects_list = SelectView::new();
     let projects = prefs.borrow().custom_meetings.clone();
-    let height = projects.iter().map(|p| p.meetings.len()).max().unwrap() + 2;
+    let height = std::cmp::max(
+        projects.iter().map(|p| p.meetings.len()).max(),
+        Some(projects.len()),
+    )
+    .unwrap()
+        + 2;
 
     projects
         .iter()
         .enumerate()
         .for_each(|(i, p)| projects_list.add_item(p.name.clone(), i));
 
+    let mut meetings_list = SelectView::new();
+    projects[0]
+        .meetings
+        .clone()
+        .iter()
+        .for_each(|Meeting(meeting_type, ticket)| {
+            meetings_list.add_item(meeting_type.to_string(), ticket.to_string())
+        });
+
     projects_list.set_on_select(move |c, item| {
-        let mut action_view = c.find_name::<SelectView>("meeting").unwrap();
-        action_view.clear();
+        let mut meeting_list = c.find_name::<SelectView>("meeting").unwrap();
+        meeting_list.clear();
         let meetings: Vec<Meeting> = projects[*item].meetings.clone();
         meetings.iter().for_each(|Meeting(meeting_type, ticket)| {
-            action_view.add_item(meeting_type.to_string(), ticket.to_string())
+            meeting_list.add_item(meeting_type.to_string(), ticket.to_string())
         });
     });
-
-    let meetings_list = SelectView::new().item_str("Please Select a Project");
 
     let select_meeting = Box::from(
         LinearLayout::horizontal()
@@ -82,13 +89,13 @@ pub fn create_meetings_dialog(
             ),
     );
 
-    create_looging_dialog(prefs, title, issue, width, Some(select_meeting))
+    create_looging_dialog(prefs, title, None, width, Some(select_meeting))
 }
 
 fn create_looging_dialog(
     prefs: PrefRef,
     title: Option<&str>,
-    issue: String,
+    issue: Option<String>,
     width: usize,
     child: Option<Box<dyn View>>,
 ) -> Box<dyn View> {
@@ -127,7 +134,7 @@ fn create_looging_dialog(
     )
 }
 
-fn submit_time_log(c: &mut Cursive, prefs: PrefRef, issue: String) {
+fn submit_time_log(c: &mut Cursive, prefs: PrefRef, issue: Option<String>) {
     let comment = c
         .find_name::<EditView>("comment")
         .unwrap()
@@ -137,20 +144,19 @@ fn submit_time_log(c: &mut Cursive, prefs: PrefRef, issue: String) {
     let issue = c
         .find_name::<SelectView>("meeting")
         .and_then(|view| view.selection().map(|s| s.to_string()))
-        .unwrap_or(issue);
+        .unwrap_or(issue.unwrap_or_default());
 
     let time_input: ViewRef<EditView> = c.find_name("time").unwrap();
     match time::string_to_seconds(time_input.get_content().as_str()) {
         Ok(time) => {
             c.add_layer(Dialog::around(TextView::new("Uploading...")));
-            let prefs = prefs.borrow();
+            // let prefs = prefs.borrow();
 
             match submit_timelog(&TimeLog {
                 time_spent_seconds: time,
                 comment,
                 ticket_number: issue,
-                url: prefs.jira_url.to_string(),
-                api_key: prefs.api_key.to_string(),
+                prefs,
             }) {
                 Ok(_) => c.add_layer(
                     Dialog::around(TextView::new("Successful".to_string())).button("Okay", |c| {
