@@ -2,7 +2,7 @@ use b64_rs::encode;
 use reqwest::{blocking::Client, Method, StatusCode};
 use time::{macros::format_description, OffsetDateTime};
 
-use crate::preferences::{PrefRef, Preferences};
+use crate::preferences::{PrefRef};
 
 pub struct Error(String);
 
@@ -20,12 +20,11 @@ pub struct TimeLog {
 }
 
 pub fn submit_timelog(log: &TimeLog) -> Result<(), Error> {
-    let Preferences {
-        jira_url,
-        email,
-        api_key,
-        ..
-    } = log.prefs.clone().take();
+    let prefs = log.prefs.borrow();
+    
+    let jira_url = &prefs.jira_url;
+    let email = &prefs.email;
+    let api_key = &prefs.api_key;
 
     let url = format!(
         "{}/rest/api/2/issue/{}/worklog",

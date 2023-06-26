@@ -58,9 +58,8 @@ pub fn create_meetings_dialog(prefs: PrefRef, title: Option<&str>, width: usize)
         .for_each(|(i, p)| projects_list.add_item(p.name.clone(), i));
 
     let mut meetings_list = SelectView::new();
-    projects[0]
+    projects.clone()[0]
         .meetings
-        .clone()
         .iter()
         .for_each(|Meeting(meeting_type, ticket)| {
             meetings_list.add_item(meeting_type.to_string(), ticket.to_string())
