@@ -11,6 +11,7 @@ pub enum MeetingType {
     NonBillable,
     Deployment,
     Mentoring,
+    Recruitment,
     PersonalDistraction,
 }
 
