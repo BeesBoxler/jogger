@@ -15,9 +15,7 @@ use std::{cell::RefCell, rc::Rc};
 const WIDTH: usize = 86;
 
 fn main() {
-    let prefs = Rc::new(RefCell::new(
-        Preferences::load().unwrap_or(Preferences::new()),
-    ));
+    let prefs = Rc::new(RefCell::new(Preferences::load().unwrap_or_default()));
 
     let mut c = Cursive::new();
     c.add_global_callback('q', |c| match c.pop_layer() {
