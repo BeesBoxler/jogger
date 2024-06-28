@@ -22,7 +22,7 @@ pub fn create_setup_dialog(prefs: PrefRef, width: usize) -> Box<dyn View> {
                 .child(TextView::new("Email Address: "))
                 .child(
                     EditView::new()
-                        .content(&prefs.borrow().jira_url)
+                        .content(&prefs.borrow().email)
                         .with_name("email_addr")
                         .full_width(),
                 ),
