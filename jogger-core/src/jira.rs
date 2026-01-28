@@ -67,7 +67,9 @@ pub fn submit_timelog(log: &TimeLog) -> Result<(), Error> {
     match response.status() {
         StatusCode::OK | StatusCode::CREATED => Ok(()),
         status => {
-            let error_body = response.text().unwrap_or_else(|_| "Unknown error".to_string());
+            let error_body = response
+                .text()
+                .unwrap_or_else(|_| "Unknown error".to_string());
             Err(Error(format!("Jira returned {}: {}", status, error_body)))
         }
     }

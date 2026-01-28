@@ -8,7 +8,7 @@ use std::rc::Rc;
 
 pub fn create_setup_dialog(prefs: PrefRef, width: usize) -> Box<dyn View> {
     let p = Rc::clone(&prefs);
-    
+
     let layout = LinearLayout::vertical()
         .child(
             LinearLayout::horizontal()

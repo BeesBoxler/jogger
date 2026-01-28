@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use std::io::Error;
 use std::{cell::RefCell, rc::Rc};
+use time::OffsetDateTime;
 
 use crate::meeting_types::{seed_meeting_tickets, Project};
 
@@ -10,12 +11,48 @@ const PREF_FILENAME: &str = "jogger.conf";
 pub type PrefRef = Rc<RefCell<Preferences>>;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReminderSettings {
+    pub enabled: bool,
+    pub interval_minutes: u32, // 15, 30, or 60
+}
+
+impl Default for ReminderSettings {
+    fn default() -> Self {
+        ReminderSettings {
+            enabled: false,
+            interval_minutes: 30,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TimerState {
+    pub last_log_time: Option<i64>, // Unix timestamp
+    pub accumulated_seconds: u32,
+    pub last_ticket: Option<String>,
+    pub last_log_date: Option<String>, // YYYY-MM-DD for daily reset
+}
+
+impl Default for TimerState {
+    fn default() -> Self {
+        TimerState {
+            last_log_time: None,
+            accumulated_seconds: 0,
+            last_ticket: None,
+            last_log_date: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Preferences {
     pub name: String,
     pub email: String,
     pub api_key: String,
     pub jira_url: String,
     pub custom_meetings: Vec<Project>,
+    pub reminder_settings: ReminderSettings,
+    pub timer_state: TimerState,
 }
 
 impl Preferences {
@@ -26,6 +63,8 @@ impl Preferences {
             api_key: String::new(),
             jira_url: String::new(),
             custom_meetings: seed_meeting_tickets(),
+            reminder_settings: ReminderSettings::default(),
+            timer_state: TimerState::default(),
         }
     }
 
@@ -100,6 +139,51 @@ impl Preferences {
         )?;
 
         Ok(())
+    }
+    
+    // Helper to check if we should reset accumulated time
+    pub fn should_reset_timer(&self) -> bool {
+        let now = OffsetDateTime::now_utc();
+        let today = format!("{:04}-{:02}-{:02}", now.year(), now.month() as u8, now.day());
+        
+        // Reset if it's a new day
+        if let Some(last_date) = &self.timer_state.last_log_date {
+            if last_date != &today {
+                return true;
+            }
+        }
+        
+        // Reset if gap is > 12 hours
+        if let Some(last_time) = self.timer_state.last_log_time {
+            let elapsed = now.unix_timestamp() - last_time;
+            if elapsed > 12 * 3600 {
+                return true;
+            }
+        }
+        
+        false
+    }
+    
+    // Update timer state after logging
+    pub fn update_timer_state(&mut self, ticket: &str) {
+        let now = OffsetDateTime::now_utc();
+        
+        self.timer_state.last_log_time = Some(now.unix_timestamp());
+        self.timer_state.last_ticket = Some(ticket.to_string());
+        self.timer_state.last_log_date = Some(format!("{:04}-{:02}-{:02}", 
+            now.year(), now.month() as u8, now.day()));
+        self.timer_state.accumulated_seconds = 0; // Reset after logging
+    }
+    
+    // Get elapsed time since last log
+    pub fn get_elapsed_seconds(&self) -> u32 {
+        if let Some(last_time) = self.timer_state.last_log_time {
+            let now = OffsetDateTime::now_utc();
+            let elapsed = (now.unix_timestamp() - last_time) as u32;
+            elapsed + self.timer_state.accumulated_seconds
+        } else {
+            0
+        }
     }
 }
 
