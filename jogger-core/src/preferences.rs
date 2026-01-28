@@ -25,15 +25,13 @@ impl Default for ReminderSettings {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct TimerState {
     pub last_log_time: Option<i64>, // Unix timestamp
     pub accumulated_seconds: u32,
     pub last_ticket: Option<String>,
     pub last_log_date: Option<String>, // YYYY-MM-DD for daily reset
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Preferences {
