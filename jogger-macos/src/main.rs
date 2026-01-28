@@ -23,7 +23,6 @@ enum UserEvent {
 
 // Helper to create empty icon for alerts
 
-
 // Helper to activate app and bring to front
 fn activate_app() {
     unsafe {
@@ -63,10 +62,11 @@ fn show_reminder_dialog(prefs: Arc<Mutex<Preferences>>) {
         let _pool = NSAutoreleasePool::new(nil);
         let alert: id = msg_send![Class::get("NSAlert").unwrap(), alloc];
         let alert: id = msg_send![alert, init];
+        let _: () = msg_send![alert, setAlertStyle: 1]; // NSAlertStyleInformational
 
         let msg_ns = NSString::alloc(nil).init_str(&message);
         let _: () = msg_send![alert, setMessageText: msg_ns];
-        let _: () = msg_send![alert, setIcon: nil];
+        
 
         let _: () =
             msg_send![alert, addButtonWithTitle: NSString::alloc(nil).init_str("Log to Ticket")];
@@ -217,6 +217,7 @@ fn show_multi_input_alert(title: &str, fields: &[(&str, &str)]) -> Option<Vec<St
 
         let alert: id = msg_send![Class::get("NSAlert").unwrap(), alloc];
         let alert: id = msg_send![alert, init];
+        let _: () = msg_send![alert, setAlertStyle: 1]; // NSAlertStyleInformational
 
         let title_ns = NSString::alloc(nil).init_str(title);
         let _: () = msg_send![alert, setMessageText: title_ns];
@@ -266,7 +267,7 @@ fn show_multi_input_alert(title: &str, fields: &[(&str, &str)]) -> Option<Vec<St
         let _: () = msg_send![alert, addButtonWithTitle: NSString::alloc(nil).init_str("Cancel")];
 
         // Remove the icon and make it appear on top
-        let _: () = msg_send![alert, setIcon: nil];
+        
         let _: () = msg_send![alert, layout];
 
         let response: isize = msg_send![alert, runModal];
@@ -301,6 +302,7 @@ fn show_alert(title: &str, message: &str) {
 
         let alert: id = msg_send![Class::get("NSAlert").unwrap(), alloc];
         let alert: id = msg_send![alert, init];
+        let _: () = msg_send![alert, setAlertStyle: 1]; // NSAlertStyleInformational
 
         let title_ns = NSString::alloc(nil).init_str(title);
         let message_ns = NSString::alloc(nil).init_str(message);
@@ -309,7 +311,7 @@ fn show_alert(title: &str, message: &str) {
         let _: () = msg_send![alert, addButtonWithTitle: NSString::alloc(nil).init_str("OK")];
 
         // Remove the icon
-        let _: () = msg_send![alert, setIcon: nil];
+        
 
         let _: isize = msg_send![alert, runModal];
     }
@@ -535,6 +537,7 @@ fn show_meeting_selector_dropdown(prefs: Arc<Mutex<Preferences>>) -> Option<Stri
 
         let alert: id = msg_send![Class::get("NSAlert").unwrap(), alloc];
         let alert: id = msg_send![alert, init];
+        let _: () = msg_send![alert, setAlertStyle: 1]; // NSAlertStyleInformational
 
         let title_ns = NSString::alloc(nil).init_str("Log Personal Distraction");
         let _: () = msg_send![alert, setMessageText: title_ns];
@@ -612,7 +615,7 @@ fn show_meeting_selector_dropdown(prefs: Arc<Mutex<Preferences>>) -> Option<Stri
         let _: () = msg_send![alert, addButtonWithTitle: NSString::alloc(nil).init_str("Cancel")];
 
         // Remove the icon
-        let _: () = msg_send![alert, setIcon: nil];
+        
 
         let response: isize = msg_send![alert, runModal];
 
@@ -678,6 +681,7 @@ fn show_preferences_dialog(prefs: Arc<Mutex<Preferences>>) {
 
         let alert: id = msg_send![Class::get("NSAlert").unwrap(), alloc];
         let alert: id = msg_send![alert, init];
+        let _: () = msg_send![alert, setAlertStyle: 1]; // NSAlertStyleInformational
 
         let title_ns = NSString::alloc(nil).init_str("Preferences ⚙️");
         let _: () = msg_send![alert, setMessageText: title_ns];
@@ -758,7 +762,7 @@ fn show_preferences_dialog(prefs: Arc<Mutex<Preferences>>) {
         let _: () = msg_send![alert, setAccessoryView: container];
         let _: () = msg_send![alert, addButtonWithTitle: NSString::alloc(nil).init_str("Save")];
         let _: () = msg_send![alert, addButtonWithTitle: NSString::alloc(nil).init_str("Cancel")];
-        let _: () = msg_send![alert, setIcon: nil];
+        
 
         let response: isize = msg_send![alert, runModal];
 
