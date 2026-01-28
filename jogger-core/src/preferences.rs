@@ -81,14 +81,12 @@ impl Preferences {
             Err(_) => {
                 let mut prefs = Preferences::new();
                 for line in input.lines() {
-                    match line.split_once('=').unwrap() {
-                        ("NAME", name) => {
-                            prefs.set_name(name);
-                        }
-                        ("API_KEY", api_key) => {
-                            prefs.set_api_key(api_key);
-                        }
-                        _ => {}
+                    if let Some((key, value)) = line.split_once('=') {
+                        match key {
+                            "NAME" => prefs.set_name(value),
+                            "API_KEY" => prefs.set_api_key(value),
+                            _ => &mut prefs,
+                        };
                     }
                 }
                 Self::backup().ok();
