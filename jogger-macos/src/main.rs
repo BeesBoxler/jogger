@@ -575,6 +575,14 @@ fn show_preferences_dialog(prefs: Arc<Mutex<Preferences>>) {
 }
 
 fn main() {
+    unsafe {
+        // Set as background agent (no Dock icon, no app switcher entry)
+        let info: id = msg_send![Class::get("NSBundle").unwrap(), mainBundle];
+        let dict: id = msg_send![info, infoDictionary];
+        let key = NSString::alloc(nil).init_str("LSUIElement");
+        let _: () = msg_send![dict, setValue:NSString::alloc(nil).init_str("1") forKey:key];
+    }
+
     println!("🏃🏼‍♀️ Jogger - Menu Bar App");
     println!("✨ Look for Gerald the Gentleman Runner in your menu bar!");
 
