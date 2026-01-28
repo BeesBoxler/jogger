@@ -140,19 +140,24 @@ impl Preferences {
 
         Ok(())
     }
-    
+
     // Helper to check if we should reset accumulated time
     pub fn should_reset_timer(&self) -> bool {
         let now = OffsetDateTime::now_utc();
-        let today = format!("{:04}-{:02}-{:02}", now.year(), now.month() as u8, now.day());
-        
+        let today = format!(
+            "{:04}-{:02}-{:02}",
+            now.year(),
+            now.month() as u8,
+            now.day()
+        );
+
         // Reset if it's a new day
         if let Some(last_date) = &self.timer_state.last_log_date {
             if last_date != &today {
                 return true;
             }
         }
-        
+
         // Reset if gap is > 12 hours
         if let Some(last_time) = self.timer_state.last_log_time {
             let elapsed = now.unix_timestamp() - last_time;
@@ -160,21 +165,25 @@ impl Preferences {
                 return true;
             }
         }
-        
+
         false
     }
-    
+
     // Update timer state after logging
     pub fn update_timer_state(&mut self, ticket: &str) {
         let now = OffsetDateTime::now_utc();
-        
+
         self.timer_state.last_log_time = Some(now.unix_timestamp());
         self.timer_state.last_ticket = Some(ticket.to_string());
-        self.timer_state.last_log_date = Some(format!("{:04}-{:02}-{:02}", 
-            now.year(), now.month() as u8, now.day()));
+        self.timer_state.last_log_date = Some(format!(
+            "{:04}-{:02}-{:02}",
+            now.year(),
+            now.month() as u8,
+            now.day()
+        ));
         self.timer_state.accumulated_seconds = 0; // Reset after logging
     }
-    
+
     // Get elapsed time since last log
     pub fn get_elapsed_seconds(&self) -> u32 {
         if let Some(last_time) = self.timer_state.last_log_time {

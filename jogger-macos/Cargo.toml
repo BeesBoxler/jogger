@@ -18,6 +18,7 @@ path = "src/main.rs"
 [dependencies]
 jogger-core = { path = "../jogger-core" }
 tray-icon = "0.19"
+time = { version = "0.3", features = ["formatting", "macros"] }
 winit = "0.30"
 image = "0.25"
 cocoa = "0.25"

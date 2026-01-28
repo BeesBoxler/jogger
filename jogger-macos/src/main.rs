@@ -1,17 +1,25 @@
 use cocoa::appkit::NSTextField;
 use cocoa::base::{id, nil};
 use cocoa::foundation::{NSAutoreleasePool, NSPoint, NSRect, NSSize, NSString};
-use jogger_core::{submit_timelog, Preferences, TimeLog};
+use jogger_core::{submit_timelog, time::string_to_seconds, Preferences, TimeLog};
 use objc::runtime::Class;
 use objc::{msg_send, sel, sel_impl};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
+use std::thread;
+use std::time::Duration;
+use time::OffsetDateTime;
 use tray_icon::{
     menu::{Menu, MenuEvent, MenuItem},
     TrayIconBuilder,
 };
-use winit::event_loop::{ControlFlow, EventLoop};
+use winit::event_loop::{ControlFlow, EventLoop, EventLoopProxy};
+
+#[derive(Debug, Clone)]
+enum UserEvent {
+    ReminderTick,
+}
 
 // Helper to activate app and bring to front
 fn activate_app() {
@@ -19,6 +27,154 @@ fn activate_app() {
         let app: id = msg_send![Class::get("NSApplication").unwrap(), sharedApplication];
         let _: () = msg_send![app, activateIgnoringOtherApps: true];
     }
+}
+
+// Show reminder dialog with 4 options
+fn show_reminder_dialog(prefs: Arc<Mutex<Preferences>>) {
+    activate_app();
+    
+    let mut prefs_lock = prefs.lock().unwrap();
+    
+    // Check if we should reset
+    if prefs_lock.should_reset_timer() {
+        prefs_lock.timer_state.accumulated_seconds = 0;
+        prefs_lock.timer_state.last_log_time = None;
+    }
+    
+    let elapsed = prefs_lock.get_elapsed_seconds();
+    let minutes = elapsed / 60;
+    
+    let message = if prefs_lock.timer_state.accumulated_seconds > 0 {
+        format!("⏰ Time to log!\n\n{} minutes elapsed\n(+{} minutes accumulated)", 
+            minutes, prefs_lock.timer_state.accumulated_seconds / 60)
+    } else {
+        format!("⏰ Time to log!\n\n{} minutes elapsed", minutes)
+    };
+    
+    drop(prefs_lock);
+    
+    unsafe {
+        let _pool = NSAutoreleasePool::new(nil);
+        let alert: id = msg_send![Class::get("NSAlert").unwrap(), alloc];
+        let alert: id = msg_send![alert, init];
+        
+        let msg_ns = NSString::alloc(nil).init_str(&message);
+        let _: () = msg_send![alert, setMessageText: msg_ns];
+        let _: () = msg_send![alert, setIcon: nil];
+        
+        let _: () = msg_send![alert, addButtonWithTitle: NSString::alloc(nil).init_str("Log to Ticket")];
+        let _: () = msg_send![alert, addButtonWithTitle: NSString::alloc(nil).init_str("Log to Distraction")];
+        let _: () = msg_send![alert, addButtonWithTitle: NSString::alloc(nil).init_str("Continue")];
+        let _: () = msg_send![alert, addButtonWithTitle: NSString::alloc(nil).init_str("Cancel")];
+        
+        let response: isize = msg_send![alert, runModal];
+        
+        match response {
+            1000 => { // Log to Ticket
+                drop(alert);
+                if let Some(values) = show_multi_input_alert("Log Time to Ticket", &[
+                    ("Ticket:", "PROJ-123"),
+                    ("Time:", &format!("{}m", minutes)),
+                ]) {
+                    if values.len() == 2 {
+                        let prefs_lock = prefs.lock().unwrap();
+                        let prefs_ref = Rc::new(RefCell::new(prefs_lock.clone()));
+                        let timelog = TimeLog {
+                            ticket_number: values[0].clone(),
+                            time_spent_seconds: string_to_seconds(&values[1]).unwrap_or(elapsed as usize),
+                            comment: String::new(),
+                            prefs: prefs_ref,
+                        };
+                        drop(prefs_lock);
+                        
+                        match submit_timelog(&timelog) {
+                            Ok(_) => {
+                                let mut prefs_lock = prefs.lock().unwrap();
+                                prefs_lock.update_timer_state(&values[0]);
+                                let _ = prefs_lock.save();
+                                show_alert("Success! ✅", "Time logged successfully!");
+                            }
+                            Err(e) => show_alert("Error ❌", &format!("Failed to log time:\n{}", e.msg())),
+                        }
+                    }
+                }
+            }
+            1001 => { // Log to Distraction
+                drop(alert);
+                // Find first PersonalDistraction ticket
+                let prefs_lock = prefs.lock().unwrap();
+                let distraction = prefs_lock.custom_meetings.iter()
+                    .flat_map(|p| &p.meetings)
+                    .find(|m| matches!(m.0, jogger_core::meeting_types::MeetingType::PersonalDistraction))
+                    .map(|m| m.1.clone());
+                drop(prefs_lock);
+                
+                if let Some(distraction_ticket) = distraction {
+                    if let Some(time_str) = show_single_input_alert("Log Personal Distraction", "Time:", &format!("{}m", minutes)) {
+                        let prefs_lock = prefs.lock().unwrap();
+                        let prefs_ref = Rc::new(RefCell::new(prefs_lock.clone()));
+                        let timelog = TimeLog {
+                            ticket_number: distraction_ticket.clone(),
+                            time_spent_seconds: string_to_seconds(&time_str).unwrap_or(elapsed as usize),
+                            comment: String::new(),
+                            prefs: prefs_ref,
+                        };
+                        drop(prefs_lock);
+                        
+                        match submit_timelog(&timelog) {
+                            Ok(_) => {
+                                let mut prefs_lock = prefs.lock().unwrap();
+                                prefs_lock.update_timer_state(&distraction_ticket);
+                                let _ = prefs_lock.save();
+                                show_alert("Success! ✅", "Time logged successfully!");
+                            }
+                            Err(e) => show_alert("Error ❌", &format!("Failed to log time:\n{}", e.msg())),
+                        }
+                    }
+                } else {
+                    show_alert("Error ❌", "No personal distraction ticket configured!");
+                }
+            }
+            1002 => { // Continue
+                drop(alert);
+                let mut prefs_lock = prefs.lock().unwrap();
+                if let Some(last_ticket) = prefs_lock.timer_state.last_ticket.clone() {
+                    let prefs_ref = Rc::new(RefCell::new(prefs_lock.clone()));
+                    let timelog = TimeLog {
+                        ticket_number: last_ticket.clone(),
+                        time_spent_seconds: elapsed as usize,
+                        comment: String::new(),
+                        prefs: prefs_ref,
+                    };
+                    drop(prefs_lock);
+                    
+                    match submit_timelog(&timelog) {
+                        Ok(_) => {
+                            let mut prefs_lock = prefs.lock().unwrap();
+                            prefs_lock.update_timer_state(&last_ticket);
+                            let _ = prefs_lock.save();
+                            show_alert("Success! ✅", "Time logged successfully!");
+                        }
+                        Err(e) => show_alert("Error ❌", &format!("Failed to log time:\n{:?}", e.msg())),
+                    }
+                } else {
+                    show_alert("Error ❌", "No previous ticket to continue with!");
+                }
+            }
+            _ => { // Cancel - accumulate time
+                drop(alert);
+                let mut prefs_lock = prefs.lock().unwrap();
+                prefs_lock.timer_state.accumulated_seconds += elapsed;
+                prefs_lock.timer_state.last_log_time = Some(OffsetDateTime::now_utc().unix_timestamp());
+                let _ = prefs_lock.save();
+            }
+        }
+    }
+}
+
+// Helper for single input
+fn show_single_input_alert(title: &str, label: &str, placeholder: &str) -> Option<String> {
+    show_multi_input_alert(title, &[(label, placeholder)]).map(|v| v.into_iter().next().unwrap())
 }
 
 // Helper to show native macOS alert with multiple text inputs
@@ -475,7 +631,7 @@ fn show_distraction_dialog(prefs: Arc<Mutex<Preferences>>) {
 }
 
 fn show_preferences_dialog(prefs: Arc<Mutex<Preferences>>) {
-    activate_app(); // Bring app to front!
+    activate_app();
 
     let current = prefs.lock().unwrap().clone();
 
@@ -486,7 +642,6 @@ fn show_preferences_dialog(prefs: Arc<Mutex<Preferences>>) {
         ("Jira URL:", &current.jira_url),
     ];
 
-    // Create dialog with pre-filled values
     unsafe {
         let _pool = NSAutoreleasePool::new(nil);
 
@@ -497,7 +652,7 @@ fn show_preferences_dialog(prefs: Arc<Mutex<Preferences>>) {
         let _: () = msg_send![alert, setMessageText: title_ns];
 
         let container: id = msg_send![Class::get("NSView").unwrap(), alloc];
-        let height = (fields.len() as f64) * 50.0;
+        let height = (fields.len() as f64) * 50.0 + 100.0; // Extra space for reminder settings
         let container: id = msg_send![container, initWithFrame: NSRect::new(
             NSPoint::new(0., 0.),
             NSSize::new(400., height)
@@ -508,7 +663,6 @@ fn show_preferences_dialog(prefs: Arc<Mutex<Preferences>>) {
         for (i, (label, value)) in fields.iter().enumerate() {
             let y = height - ((i + 1) as f64 * 50.0);
 
-            // Label
             let label_view: id = msg_send![Class::get("NSTextField").unwrap(), alloc];
             let label_view: id = msg_send![label_view, initWithFrame: NSRect::new(
                 NSPoint::new(0., y + 20.),
@@ -522,7 +676,6 @@ fn show_preferences_dialog(prefs: Arc<Mutex<Preferences>>) {
             let _: () = msg_send![label_view, setSelectable: false];
             let _: () = msg_send![container, addSubview: label_view];
 
-            // Input field with current value
             let text_field = NSTextField::alloc(nil);
             let text_field: id = msg_send![text_field, initWithFrame: NSRect::new(
                 NSPoint::new(0., y),
@@ -535,17 +688,46 @@ fn show_preferences_dialog(prefs: Arc<Mutex<Preferences>>) {
             text_fields.push(text_field);
         }
 
+        // Reminder settings section
+        let reminder_y = 80.0;
+        
+        // Checkbox
+        let checkbox: id = msg_send![Class::get("NSButton").unwrap(), alloc];
+        let checkbox: id = msg_send![checkbox, initWithFrame: NSRect::new(
+            NSPoint::new(0., reminder_y + 40.),
+            NSSize::new(400., 20.)
+        )];
+        let _: () = msg_send![checkbox, setButtonType: 3]; // Switch button
+        let _: () = msg_send![checkbox, setTitle: NSString::alloc(nil).init_str("Enable ADHD-Friendly Reminders ⏰")];
+        let _: () = msg_send![checkbox, setState: if current.reminder_settings.enabled { 1 } else { 0 }];
+        let _: () = msg_send![container, addSubview: checkbox];
+
+        // Interval dropdown
+        let popup: id = msg_send![Class::get("NSPopUpButton").unwrap(), alloc];
+        let popup: id = msg_send![popup, initWithFrame: NSRect::new(
+            NSPoint::new(0., reminder_y),
+            NSSize::new(200., 30.)
+        )];
+        let _: () = msg_send![popup, addItemWithTitle: NSString::alloc(nil).init_str("Every 15 minutes")];
+        let _: () = msg_send![popup, addItemWithTitle: NSString::alloc(nil).init_str("Every 30 minutes")];
+        let _: () = msg_send![popup, addItemWithTitle: NSString::alloc(nil).init_str("Every 60 minutes")];
+        
+        let selected_idx = match current.reminder_settings.interval_minutes {
+            15 => 0,
+            30 => 1,
+            _ => 2,
+        };
+        let _: () = msg_send![popup, selectItemAtIndex: selected_idx];
+        let _: () = msg_send![container, addSubview: popup];
+
         let _: () = msg_send![alert, setAccessoryView: container];
         let _: () = msg_send![alert, addButtonWithTitle: NSString::alloc(nil).init_str("Save")];
         let _: () = msg_send![alert, addButtonWithTitle: NSString::alloc(nil).init_str("Cancel")];
-
-        // Remove the icon
         let _: () = msg_send![alert, setIcon: nil];
 
         let response: isize = msg_send![alert, runModal];
 
         if response == 1000 {
-            // Save clicked
             let mut new_prefs = current;
 
             for (i, text_field) in text_fields.iter().enumerate() {
@@ -567,7 +749,17 @@ fn show_preferences_dialog(prefs: Arc<Mutex<Preferences>>) {
                 }
             }
 
-            // Save to file
+            // Get reminder settings
+            let checkbox_state: isize = msg_send![checkbox, state];
+            new_prefs.reminder_settings.enabled = checkbox_state == 1;
+            
+            let selected: isize = msg_send![popup, indexOfSelectedItem];
+            new_prefs.reminder_settings.interval_minutes = match selected {
+                0 => 15,
+                1 => 30,
+                _ => 60,
+            };
+
             match new_prefs.save() {
                 Ok(_) => {
                     *prefs.lock().unwrap() = new_prefs;
@@ -587,7 +779,7 @@ fn main() {
 
     let prefs = Arc::new(Mutex::new(Preferences::load().unwrap_or_default()));
 
-    let event_loop = EventLoop::new().unwrap();
+    let event_loop: EventLoop<UserEvent> = EventLoop::with_user_event().build().unwrap();
 
     // Create menu
     let menu = Menu::new();
@@ -615,8 +807,31 @@ fn main() {
 
     let menu_channel = MenuEvent::receiver();
 
-    let _ = event_loop.run(move |_event, elwt| {
+    // Spawn background timer thread
+    let proxy = event_loop.create_proxy();
+    let prefs_timer = Arc::clone(&prefs);
+    thread::spawn(move || loop {
+        thread::sleep(Duration::from_secs(60)); // Check every minute
+        
+        let prefs = prefs_timer.lock().unwrap();
+        if prefs.reminder_settings.enabled {
+            let elapsed = prefs.get_elapsed_seconds();
+            let interval_seconds = prefs.reminder_settings.interval_minutes * 60;
+            
+            if elapsed >= interval_seconds {
+                let _ = proxy.send_event(UserEvent::ReminderTick);
+            }
+        }
+    });
+
+    let _ = event_loop.run(move |event, elwt| {
         elwt.set_control_flow(ControlFlow::Wait);
+
+        // Handle timer events
+        if let winit::event::Event::UserEvent(UserEvent::ReminderTick) = event {
+            show_reminder_dialog(Arc::clone(&prefs));
+            return;
+        }
 
         if let Ok(event) = menu_channel.try_recv() {
             let prefs = Arc::clone(&prefs);
