@@ -5,12 +5,20 @@ set -e
 
 PLIST_NAME="com.jogger.macos.plist"
 PLIST_PATH="$HOME/Library/LaunchAgents/$PLIST_NAME"
-BINARY_PATH="$HOME/.cargo/bin/jogger-macos"
+APP_PATH="$HOME/Applications/Jogger.app"
 
-# Check if binary exists
-if [ ! -f "$BINARY_PATH" ]; then
-    echo "❌ jogger-macos not found at $BINARY_PATH"
-    echo "Run: cargo install --path jogger-macos"
+# Check if app bundle exists
+if [ ! -d "$APP_PATH" ]; then
+    echo "❌ Jogger.app not found at $APP_PATH"
+    echo ""
+    echo "Please install Jogger.app first:"
+    echo "  1. Download from GitHub releases"
+    echo "  2. Extract: tar xzf jogger-macos-*.tar.gz"
+    echo "  3. Move to Applications: mv Jogger.app ~/Applications/"
+    echo ""
+    echo "Or build locally:"
+    echo "  ./build-app-bundle.sh"
+    echo "  mv target/release/Jogger.app ~/Applications/"
     exit 1
 fi
 
@@ -28,7 +36,8 @@ cat > "$PLIST_PATH" << EOF
     
     <key>ProgramArguments</key>
     <array>
-        <string>$BINARY_PATH</string>
+        <string>/usr/bin/open</string>
+        <string>$APP_PATH</string>
     </array>
     
     <key>RunAtLoad</key>
@@ -52,7 +61,7 @@ launchctl load "$PLIST_PATH"
 
 echo "✅ Jogger installed as LaunchAgent"
 echo "📍 Plist: $PLIST_PATH"
-echo "🏃 Binary: $BINARY_PATH"
+echo "🏃 App: $APP_PATH"
 echo "📝 Logs: $HOME/Library/Logs/jogger-macos.log"
 echo ""
 echo "To uninstall:"
