@@ -14,7 +14,7 @@ use tray_icon::{
     menu::{Menu, MenuEvent, MenuItem},
     TrayIconBuilder,
 };
-use winit::event_loop::{ControlFlow, EventLoop, EventLoopProxy};
+use winit::event_loop::{ControlFlow, EventLoop};
 
 #[derive(Debug, Clone)]
 enum UserEvent {
@@ -27,14 +27,6 @@ fn create_empty_icon() -> id {
         let image: id = msg_send![Class::get("NSImage").unwrap(), alloc];
         let image: id = msg_send![image, initWithSize: NSSize::new(1.0, 1.0)];
         image
-    }
-}
-
-// Helper to remove icon space from alert
-fn remove_alert_icon(alert: id) {
-    unsafe {
-        let _: () = msg_send![alert, setIcon: create_empty_icon()];
-        let _: () = msg_send![alert, setIcon: create_empty_icon()]; // NSAlertStyleInformational = 0
     }
 }
 
@@ -178,7 +170,7 @@ fn show_reminder_dialog(prefs: Arc<Mutex<Preferences>>) {
             1002 => {
                 // Continue
                 drop(alert);
-                let mut prefs_lock = prefs.lock().unwrap();
+                let prefs_lock = prefs.lock().unwrap();
                 if let Some(last_ticket) = prefs_lock.timer_state.last_ticket.clone() {
                     let prefs_ref = Rc::new(RefCell::new(prefs_lock.clone()));
                     let timelog = TimeLog {
