@@ -624,7 +624,13 @@ fn main() {
 
         let prefs = prefs_timer.lock().unwrap();
         if prefs.reminder_settings.enabled {
-            let elapsed = prefs.get_elapsed_seconds();
+            // Only check elapsed time since last log, not accumulated
+            let elapsed = if let Some(last_time) = prefs.timer_state.last_log_time {
+                let now = OffsetDateTime::now_utc();
+                (now.unix_timestamp() - last_time) as u32
+            } else {
+                0
+            };
             let interval_seconds = prefs.reminder_settings.interval_minutes * 60;
 
             if elapsed >= interval_seconds {
