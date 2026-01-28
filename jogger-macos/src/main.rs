@@ -536,7 +536,18 @@ fn show_preferences_dialog(prefs: Arc<Mutex<Preferences>>) {
 
             // Get reminder settings
             let checkbox_state: isize = msg_send![checkbox, state];
+            let was_enabled = new_prefs.reminder_settings.enabled;
             new_prefs.reminder_settings.enabled = checkbox_state == 1;
+
+            // Initialize timer when first enabled
+            if !was_enabled && new_prefs.reminder_settings.enabled && new_prefs.timer_state.last_log_time.is_none() {
+                new_prefs.timer_state.last_log_time = Some(OffsetDateTime::now_utc().unix_timestamp());
+                new_prefs.timer_state.last_log_date = Some(format!("{}-{:02}-{:02}", 
+                    OffsetDateTime::now_utc().year(),
+                    OffsetDateTime::now_utc().month() as u8,
+                    OffsetDateTime::now_utc().day()
+                ));
+            }
 
             let selected: isize = msg_send![popup, indexOfSelectedItem];
             new_prefs.reminder_settings.interval_minutes = match selected {
