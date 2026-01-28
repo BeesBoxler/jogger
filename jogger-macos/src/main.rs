@@ -30,6 +30,14 @@ fn create_empty_icon() -> id {
     }
 }
 
+// Helper to remove icon space from alert
+fn remove_alert_icon(alert: id) {
+    unsafe {
+        let _: () = msg_send![alert, setAlertStyle: 0];
+        let _: () = msg_send![alert, setAlertStyle: 0]; // NSAlertStyleInformational = 0
+    }
+}
+
 // Helper to activate app and bring to front
 fn activate_app() {
     unsafe {
@@ -72,7 +80,7 @@ fn show_reminder_dialog(prefs: Arc<Mutex<Preferences>>) {
 
         let msg_ns = NSString::alloc(nil).init_str(&message);
         let _: () = msg_send![alert, setMessageText: msg_ns];
-        let _: () = msg_send![alert, setIcon: create_empty_icon()];
+        let _: () = msg_send![alert, setAlertStyle: 0];
 
         let _: () =
             msg_send![alert, addButtonWithTitle: NSString::alloc(nil).init_str("Log to Ticket")];
@@ -272,7 +280,7 @@ fn show_multi_input_alert(title: &str, fields: &[(&str, &str)]) -> Option<Vec<St
         let _: () = msg_send![alert, addButtonWithTitle: NSString::alloc(nil).init_str("Cancel")];
 
         // Remove the icon and make it appear on top
-        let _: () = msg_send![alert, setIcon: create_empty_icon()];
+        let _: () = msg_send![alert, setAlertStyle: 0];
         let _: () = msg_send![alert, layout];
 
         let response: isize = msg_send![alert, runModal];
@@ -315,7 +323,7 @@ fn show_alert(title: &str, message: &str) {
         let _: () = msg_send![alert, addButtonWithTitle: NSString::alloc(nil).init_str("OK")];
 
         // Remove the icon
-        let _: () = msg_send![alert, setIcon: create_empty_icon()];
+        let _: () = msg_send![alert, setAlertStyle: 0];
 
         let _: isize = msg_send![alert, runModal];
     }
@@ -618,7 +626,7 @@ fn show_meeting_selector_dropdown(prefs: Arc<Mutex<Preferences>>) -> Option<Stri
         let _: () = msg_send![alert, addButtonWithTitle: NSString::alloc(nil).init_str("Cancel")];
 
         // Remove the icon
-        let _: () = msg_send![alert, setIcon: create_empty_icon()];
+        let _: () = msg_send![alert, setAlertStyle: 0];
 
         let response: isize = msg_send![alert, runModal];
 
@@ -764,7 +772,7 @@ fn show_preferences_dialog(prefs: Arc<Mutex<Preferences>>) {
         let _: () = msg_send![alert, setAccessoryView: container];
         let _: () = msg_send![alert, addButtonWithTitle: NSString::alloc(nil).init_str("Save")];
         let _: () = msg_send![alert, addButtonWithTitle: NSString::alloc(nil).init_str("Cancel")];
-        let _: () = msg_send![alert, setIcon: create_empty_icon()];
+        let _: () = msg_send![alert, setAlertStyle: 0];
 
         let response: isize = msg_send![alert, runModal];
 
