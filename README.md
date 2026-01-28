@@ -65,5 +65,24 @@ Once saved, these parameters will be stored for future usage.
 - [ ] Make it look less like ****
 - [ ] Distributed binaries
 
+## Auto-Start at Login (macOS)
+
+To have Jogger start automatically when you log in:
+
+```bash
+# First, install the binary
+cargo install --path jogger-macos
+
+# Then run the install script
+./install-launchagent.sh
+```
+
+This creates a LaunchAgent that starts Jogger in the background at login.
+
+To uninstall:
+```bash
+launchctl unload ~/Library/LaunchAgents/com.jogger.macos.plist
+rm ~/Library/LaunchAgents/com.jogger.macos.plist
+```
 
 <p align="center">🖤</p>
