@@ -1697,7 +1697,7 @@ dependencies = [
 
 [[package]]
 name = "jogger"
-version = "0.2.2"
+version = "0.3.0"
 dependencies = [
  "cursive",
  "jogger-core",
@@ -1705,7 +1705,7 @@ dependencies = [
 
 [[package]]
 name = "jogger-core"
-version = "0.2.2"
+version = "0.3.0"
 dependencies = [
  "b64-rs",
  "dirs 5.0.1",
@@ -1718,7 +1718,7 @@ dependencies = [
 
 [[package]]
 name = "jogger-macos"
-version = "0.2.2"
+version = "0.3.0"
 dependencies = [
  "cocoa",
  "image",
