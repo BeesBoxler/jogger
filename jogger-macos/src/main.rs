@@ -1,3 +1,5 @@
+#![allow(unexpected_cfgs)]
+
 use cocoa::appkit::NSTextField;
 use cocoa::base::{id, nil};
 use cocoa::foundation::{NSAutoreleasePool, NSPoint, NSRect, NSSize, NSString};
@@ -66,7 +68,6 @@ fn show_reminder_dialog(prefs: Arc<Mutex<Preferences>>) {
 
         let msg_ns = NSString::alloc(nil).init_str(&message);
         let _: () = msg_send![alert, setMessageText: msg_ns];
-        
 
         let _: () =
             msg_send![alert, addButtonWithTitle: NSString::alloc(nil).init_str("Log to Ticket")];
@@ -79,7 +80,7 @@ fn show_reminder_dialog(prefs: Arc<Mutex<Preferences>>) {
         match response {
             1000 => {
                 // Log to Ticket
-                drop(alert);
+                let _ = alert;
                 if let Some(values) = show_multi_input_alert(
                     "Log Time to Ticket",
                     &[("Ticket:", "PROJ-123"), ("Time:", &format!("{}m", minutes))],
@@ -112,7 +113,7 @@ fn show_reminder_dialog(prefs: Arc<Mutex<Preferences>>) {
             }
             1001 => {
                 // Log to Distraction
-                drop(alert);
+                let _ = alert;
                 // Find first PersonalDistraction ticket
                 let prefs_lock = prefs.lock().unwrap();
                 let distraction = prefs_lock
@@ -163,7 +164,7 @@ fn show_reminder_dialog(prefs: Arc<Mutex<Preferences>>) {
             }
             1002 => {
                 // Continue
-                drop(alert);
+                let _ = alert;
                 let prefs_lock = prefs.lock().unwrap();
                 if let Some(last_ticket) = prefs_lock.timer_state.last_ticket.clone() {
                     let prefs_ref = Rc::new(RefCell::new(prefs_lock.clone()));
@@ -192,7 +193,7 @@ fn show_reminder_dialog(prefs: Arc<Mutex<Preferences>>) {
             }
             _ => {
                 // Cancel - accumulate time
-                drop(alert);
+                let _ = alert;
                 let mut prefs_lock = prefs.lock().unwrap();
                 prefs_lock.timer_state.accumulated_seconds += elapsed;
                 prefs_lock.timer_state.last_log_time =
@@ -267,7 +268,7 @@ fn show_multi_input_alert(title: &str, fields: &[(&str, &str)]) -> Option<Vec<St
         let _: () = msg_send![alert, addButtonWithTitle: NSString::alloc(nil).init_str("Cancel")];
 
         // Remove the icon and make it appear on top
-        
+
         let _: () = msg_send![alert, layout];
 
         let response: isize = msg_send![alert, runModal];
@@ -311,7 +312,6 @@ fn show_alert(title: &str, message: &str) {
         let _: () = msg_send![alert, addButtonWithTitle: NSString::alloc(nil).init_str("OK")];
 
         // Remove the icon
-        
 
         let _: isize = msg_send![alert, runModal];
     }
@@ -615,7 +615,6 @@ fn show_meeting_selector_dropdown(prefs: Arc<Mutex<Preferences>>) -> Option<Stri
         let _: () = msg_send![alert, addButtonWithTitle: NSString::alloc(nil).init_str("Cancel")];
 
         // Remove the icon
-        
 
         let response: isize = msg_send![alert, runModal];
 
@@ -762,7 +761,6 @@ fn show_preferences_dialog(prefs: Arc<Mutex<Preferences>>) {
         let _: () = msg_send![alert, setAccessoryView: container];
         let _: () = msg_send![alert, addButtonWithTitle: NSString::alloc(nil).init_str("Save")];
         let _: () = msg_send![alert, addButtonWithTitle: NSString::alloc(nil).init_str("Cancel")];
-        
 
         let response: isize = msg_send![alert, runModal];
 
@@ -863,6 +861,7 @@ fn main() {
         }
     });
 
+    #[allow(deprecated)]
     let _ = event_loop.run(move |event, elwt| {
         elwt.set_control_flow(ControlFlow::Wait);
 
