@@ -668,12 +668,10 @@ fn show_preferences_dialog(prefs: Arc<Mutex<Preferences>>) {
 
     let current = prefs.lock().unwrap().clone();
 
-    let fields = vec![
-        ("Name:", &current.name as &str),
+    let fields = [("Name:", &current.name as &str),
         ("Email:", &current.email),
         ("API Key:", &current.api_key),
-        ("Jira URL:", &current.jira_url),
-    ];
+        ("Jira URL:", &current.jira_url)];
 
     unsafe {
         let _pool = NSAutoreleasePool::new(nil);
