@@ -50,16 +50,26 @@ jobs:
           
       - name: Build
         run: |
-          cargo build --release --target ${{ matrix.target }} -p ${{ matrix.binary }}
+          if [ "${{ matrix.binary }}" = "jogger-macos" ]; then
+            cargo build --release -p ${{ matrix.binary }}
+          else
+            cargo build --release --target ${{ matrix.target }} -p ${{ matrix.binary }}
+          fi
           
       - name: Package
         run: |
-          cd target/${{ matrix.target }}/release
+          if [ "${{ matrix.binary }}" = "jogger-macos" ]; then
+            cd target/release
+          else
+            cd target/${{ matrix.target }}/release
+          fi
           tar czf ${{ matrix.binary }}-${{ matrix.target }}.tar.gz ${{ matrix.binary }}
           
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v1
         with:
-          files: target/${{ matrix.target }}/release/${{ matrix.binary }}-${{ matrix.target }}.tar.gz
+          files: |
+            target/release/${{ matrix.binary }}-${{ matrix.target }}.tar.gz
+            target/${{ matrix.target }}/release/${{ matrix.binary }}-${{ matrix.target }}.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
