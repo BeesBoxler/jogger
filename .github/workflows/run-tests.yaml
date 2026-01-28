@@ -17,7 +17,12 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libncurses5-dev libncursesw5-dev
       - name: Run cargo test
         uses: actions-rs/cargo@v1
         with:
           command: test
+          args: -p jogger-core -p jogger
