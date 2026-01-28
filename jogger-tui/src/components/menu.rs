@@ -1,8 +1,9 @@
 use crate::components::{create_issue_input_dialog, create_meetings_dialog, create_setup_dialog};
-use crate::preferences::PrefRef;
 use cursive::view::Resizable;
 use cursive::views::{Dialog, SelectView, TextView};
 use cursive::View;
+use jogger_core::PrefRef;
+use std::rc::Rc;
 
 pub fn create_menu_dialog(prefs: PrefRef, width: usize) -> Box<dyn View> {
     let menu = SelectView::new()
@@ -11,7 +12,7 @@ pub fn create_menu_dialog(prefs: PrefRef, width: usize) -> Box<dyn View> {
         .item("Setup", 3)
         .item("Quit", 4)
         .on_submit(move |c, item| {
-            let prefs = prefs.clone();
+            let prefs = Rc::clone(&prefs);
             match item {
                 1 => c.add_layer(create_issue_input_dialog(prefs, width)),
                 2 => c.add_layer(create_meetings_dialog(

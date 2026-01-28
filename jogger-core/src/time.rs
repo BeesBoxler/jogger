@@ -2,8 +2,8 @@ use regex::{Match, Regex};
 
 pub struct Error(String);
 impl Error {
-    pub fn msg(&self) -> String {
-        self.0.clone()
+    pub fn msg(&self) -> &str {
+        &self.0
     }
 }
 

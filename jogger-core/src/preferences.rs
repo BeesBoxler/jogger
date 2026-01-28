@@ -1,8 +1,5 @@
-#![allow(deprecated)]
-
 use serde::{Deserialize, Serialize};
 
-use std::env::home_dir;
 use std::io::Error;
 use std::{cell::RefCell, rc::Rc};
 
@@ -34,7 +31,7 @@ impl Preferences {
 
     pub fn load() -> Result<Self, Error> {
         let input = std::fs::read_to_string(
-            home_dir()
+            dirs::home_dir()
                 .unwrap_or_default()
                 .join(".config")
                 .join(PREF_FILENAME),
@@ -85,7 +82,7 @@ impl Preferences {
     }
 
     pub fn save(&self) -> Result<(), Error> {
-        let path = home_dir().unwrap_or_default().join(".config");
+        let path = dirs::home_dir().unwrap_or_default().join(".config");
         std::fs::create_dir_all(&path)?;
         std::fs::write(
             path.join(PREF_FILENAME),
@@ -96,7 +93,7 @@ impl Preferences {
     }
 
     fn backup() -> Result<(), Error> {
-        let path = home_dir().unwrap_or_default().join(".config");
+        let path = dirs::home_dir().unwrap_or_default().join(".config");
         std::fs::copy(
             path.join(PREF_FILENAME),
             path.join(format!("{PREF_FILENAME}.bak")),

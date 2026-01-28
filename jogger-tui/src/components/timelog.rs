@@ -3,21 +3,16 @@ use cursive::{
     views::{Dialog, DummyView, EditView, LinearLayout, Panel, SelectView, TextView, ViewRef},
     Cursive, View,
 };
-
-use crate::{
-    jira::{submit_timelog, TimeLog},
-    meeting_types::Meeting,
-    preferences::PrefRef,
-    time,
-};
+use jogger_core::{submit_timelog, Meeting, PrefRef, TimeLog};
+use std::rc::Rc;
 
 pub fn create_issue_input_dialog(prefs: PrefRef, width: usize) -> Box<dyn View> {
-    let p = prefs.clone();
+    let p = Rc::clone(&prefs);
 
     let submit = |c: &mut Cursive, prefs: PrefRef, width: usize| {
         let issue = c.find_name::<EditView>("issue").unwrap().get_content();
         c.pop_layer();
-        c.add_layer(create_looging_dialog(
+        c.add_layer(create_logging_dialog(
             prefs,
             Some(&format!("Logging Time for {issue}")),
             Some(issue.to_string()),
@@ -30,14 +25,14 @@ pub fn create_issue_input_dialog(prefs: PrefRef, width: usize) -> Box<dyn View> 
         .child(TextView::new("Issue Number: "))
         .child(
             EditView::new()
-                .on_submit(move |c, _| submit(c, p.clone(), width))
+                .on_submit(move |c, _| submit(c, Rc::clone(&p), width))
                 .with_name("issue")
                 .full_width(),
         );
 
     Box::from(
         Dialog::around(view)
-            .button("Continue", move |c| submit(c, prefs.clone(), width))
+            .button("Continue", move |c| submit(c, Rc::clone(&prefs), width))
             .fixed_width(width),
     )
 }
@@ -58,7 +53,7 @@ pub fn create_meetings_dialog(prefs: PrefRef, title: Option<&str>, width: usize)
         .for_each(|(i, p)| projects_list.add_item(p.name.clone(), i));
 
     let mut meetings_list = SelectView::new();
-    projects.clone()[0]
+    projects[0]
         .meetings
         .iter()
         .for_each(|Meeting(meeting_type, ticket)| {
@@ -68,7 +63,7 @@ pub fn create_meetings_dialog(prefs: PrefRef, title: Option<&str>, width: usize)
     projects_list.set_on_select(move |c, item| {
         let mut meeting_list = c.find_name::<SelectView>("meeting").unwrap();
         meeting_list.clear();
-        let meetings: Vec<Meeting> = projects[*item].meetings.clone();
+        let meetings = &projects[*item].meetings;
         meetings.iter().for_each(|Meeting(meeting_type, ticket)| {
             meeting_list.add_item(meeting_type.to_string(), ticket.to_string())
         });
@@ -88,10 +83,10 @@ pub fn create_meetings_dialog(prefs: PrefRef, title: Option<&str>, width: usize)
             ),
     );
 
-    create_looging_dialog(prefs, title, None, width, Some(select_meeting))
+    create_logging_dialog(prefs, title, None, width, Some(select_meeting))
 }
 
-fn create_looging_dialog(
+fn create_logging_dialog(
     prefs: PrefRef,
     title: Option<&str>,
     issue: Option<String>,
@@ -99,7 +94,7 @@ fn create_looging_dialog(
     child: Option<Box<dyn View>>,
 ) -> Box<dyn View> {
     let i = issue.clone();
-    let p = prefs.clone();
+    let p = Rc::clone(&prefs);
 
     let child = child.unwrap_or(Box::from(DummyView));
 
@@ -110,7 +105,7 @@ fn create_looging_dialog(
                 .child(TextView::new("Time: "))
                 .child(
                     EditView::new()
-                        .on_submit(move |c, _| submit_time_log(c, p.clone(), i.clone()))
+                        .on_submit(move |c, _| submit_time_log(c, Rc::clone(&p), i.clone()))
                         .with_name("time")
                         .full_width(),
                 ),
@@ -124,7 +119,7 @@ fn create_looging_dialog(
         Dialog::around(view)
             .title(title.unwrap_or("Create Time Log"))
             .button("Submit", move |c| {
-                submit_time_log(c, prefs.clone(), issue.clone())
+                submit_time_log(c, Rc::clone(&prefs), issue.clone())
             })
             .button("Cancel", |c| {
                 c.pop_layer();
@@ -146,7 +141,7 @@ fn submit_time_log(c: &mut Cursive, prefs: PrefRef, issue: Option<String>) {
         .unwrap_or(issue.unwrap_or_default());
 
     let time_input: ViewRef<EditView> = c.find_name("time").unwrap();
-    match time::string_to_seconds(time_input.get_content().as_str()) {
+    match jogger_core::string_to_seconds(time_input.get_content().as_str()) {
         Ok(time) => {
             c.add_layer(Dialog::around(TextView::new("Uploading...")));
             // let prefs = prefs.borrow();
@@ -165,7 +160,7 @@ fn submit_time_log(c: &mut Cursive, prefs: PrefRef, issue: Option<String>) {
                     }),
                 ),
                 Err(err) => c.add_layer(
-                    Dialog::around(TextView::new(format!("ERROR: {}", err.mgs()))).button(
+                    Dialog::around(TextView::new(format!("ERROR: {}", err.msg()))).button(
                         "Okay",
                         |c| {
                             c.pop_layer();

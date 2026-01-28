@@ -16,11 +16,32 @@ and I get in far too much trouble for not doing it.
 ![Jogger](https://github.com/beesboxler/jogger/blob/images/jogger.png?raw=true)
 
 ## Installation 
+
+### Quick Install (Recommended)
+
+```bash
+# Install via cargo-binstall (fast, uses pre-built binaries)
+cargo binstall jogger
+
+# Or install from source
+cargo install jogger
+```
+
+### From Source
 _This package relies on ncurses and therefore probably only works on Windows under WSL._
 
 Ubuntu/Debian: 
 ```bash
 sudo apt install -y build-essential pkg-config libssl-dev libncurses5-dev libncursesw5-dev
+cargo install jogger
+```
+
+macOS:
+```bash
+# For the menu bar app (Gerald the Gentleman Runner!)
+cargo install jogger-macos
+
+# Or for the TUI
 cargo install jogger
 ```
 

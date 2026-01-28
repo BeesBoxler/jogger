@@ -1,15 +1,11 @@
-pub mod components;
-pub mod jira;
-pub mod meeting_types;
-pub mod preferences;
-pub mod time;
+mod components;
 
 use components::create_menu_dialog;
 use cursive::{
     theme::{BaseColor::Green, Color::Dark},
     Cursive, CursiveExt,
 };
-use preferences::Preferences;
+use jogger_core::Preferences;
 use std::{cell::RefCell, rc::Rc};
 
 const WIDTH: usize = 86;
@@ -18,9 +14,12 @@ fn main() {
     let prefs = Rc::new(RefCell::new(Preferences::load().unwrap_or_default()));
 
     let mut c = Cursive::new();
-    c.add_global_callback('q', |c| match c.pop_layer() {
-        Some(_) => c.noop(),
-        None => c.quit(),
+    c.add_global_callback('q', |c| {
+        if c.screen().len() <= 1 {
+            c.quit();
+        } else {
+            c.pop_layer();
+        }
     });
 
     c.update_theme(|theme| theme.palette.set_color("Background", Dark(Green)));

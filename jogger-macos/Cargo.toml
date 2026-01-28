@@ -1,0 +1,24 @@
+[package]
+name = "jogger-macos"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Native macOS application for logging time to Jira tickets"
+
+[package.metadata.binstall]
+pkg-url = "{ repo }/releases/download/v{ version }/{ name }-{ target }.tar.gz"
+bin-dir = "{ bin }{ binary-ext }"
+pkg-fmt = "tgz"
+
+[[bin]]
+name = "jogger-macos"
+path = "src/main.rs"
+
+[dependencies]
+jogger-core = { path = "../jogger-core" }
+tray-icon = "0.19"
+winit = "0.30"
+image = "0.25"
+cocoa = "0.25"
+objc = "0.2"

@@ -1,3 +1,30 @@
-target
+# Rust
+target/
+Cargo.lock
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Kiro CLI
+.kiro/
+
+# Test files
 test-log
+*.log
+
+# Summary/docs (generated)
+SUMMARY.md
+WORKSPACE.md
+todo.md
+
+# macOS
 .DS_Store
+
+# Backup files
+*.bak
+*.backup
+Cargo.toml.backup

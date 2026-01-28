@@ -1,11 +1,14 @@
-use crate::preferences::PrefRef;
 use cursive::{
     view::{Nameable, Resizable},
     views::{Dialog, EditView, LinearLayout, TextView, ViewRef},
     View,
 };
+use jogger_core::PrefRef;
+use std::rc::Rc;
 
 pub fn create_setup_dialog(prefs: PrefRef, width: usize) -> Box<dyn View> {
+    let p = Rc::clone(&prefs);
+    
     let layout = LinearLayout::vertical()
         .child(
             LinearLayout::horizontal()
@@ -51,7 +54,7 @@ pub fn create_setup_dialog(prefs: PrefRef, width: usize) -> Box<dyn View> {
     Box::from(
         Dialog::around(layout)
             .button("Save", move |c| {
-                let prefs = prefs.clone();
+                let prefs = Rc::clone(&p);
                 let name = &*(c.find_name("name").unwrap() as ViewRef<EditView>).get_content();
                 let api_key =
                     &*(c.find_name("api_key").unwrap() as ViewRef<EditView>).get_content();

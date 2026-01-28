@@ -1,18 +1,10 @@
-[package]
-name = "jogger"
+[workspace]
+members = ["jogger-core", "jogger-tui", "jogger-macos"]
+resolver = "2"
+
+[workspace.package]
 version = "0.2.2"
 edition = "2021"
-description = "A TUI time logging tool for jira"
-repository = "https://github.com/BeesBoxler/jogger/"
 license = "MIT"
+repository = "https://github.com/BeesBoxler/jogger/"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
-b64-rs = "1.0.3"
-cursive = {version = "0.20.0", features = ["termion-backend"] }
-regex = "1.7.1"
-reqwest = { version = "0.11.14", features = ["json", "blocking"] }
-serde = { version = "1.0.164", features = ["derive"] }
-serde_json = "1.0.99"
-time = { version = "0.3.20", features = ["macros"] }

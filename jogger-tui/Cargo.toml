@@ -1,0 +1,20 @@
+[package]
+name = "jogger"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "An nCurses based application for logging time to Jira tickets"
+
+[package.metadata.binstall]
+pkg-url = "{ repo }/releases/download/v{ version }/{ name }-{ target }.tar.gz"
+bin-dir = "{ bin }{ binary-ext }"
+pkg-fmt = "tgz"
+
+[[bin]]
+name = "jogger"
+path = "src/main.rs"
+
+[dependencies]
+jogger-core = { path = "../jogger-core" }
+cursive = { version = "0.20.0", features = ["termion-backend"] }
