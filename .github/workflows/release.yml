@@ -50,22 +50,11 @@ jobs:
           
       - name: Build
         run: |
-          if [ "${{ matrix.binary }}" = "jogger-macos" ]; then
-            cargo build --release -p jogger-macos
-          elif [ "${{ matrix.binary }}" = "jogger" ]; then
-            cd jogger-tui && cargo build --release --target ${{ matrix.target }}
-          fi
+          cargo install --path ${{ matrix.binary == 'jogger' && 'jogger-tui' || 'jogger-macos' }} --target ${{ matrix.target }} --root . --locked
           
       - name: Package
         run: |
-          if [ "${{ matrix.binary }}" = "jogger-macos" ]; then
-            cd target/release
-            tar czf ${{ matrix.binary }}-${{ matrix.target }}.tar.gz ${{ matrix.binary }}
-          elif [ "${{ matrix.binary }}" = "jogger" ]; then
-            cd jogger-tui/target/${{ matrix.target }}/release
-            tar czf ${{ matrix.binary }}-${{ matrix.target }}.tar.gz ${{ matrix.binary }}
-            mv ${{ matrix.binary }}-${{ matrix.target }}.tar.gz ../../../../
-          fi
+          tar czf ${{ matrix.binary }}-${{ matrix.target }}.tar.gz -C bin ${{ matrix.binary }}
           
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v1
