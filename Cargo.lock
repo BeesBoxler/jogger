@@ -1721,6 +1721,7 @@ name = "jogger-macos"
 version = "0.3.2"
 dependencies = [
  "cocoa",
+ "dispatch",
  "image",
  "jogger-core",
  "objc",

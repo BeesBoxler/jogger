@@ -3,12 +3,35 @@ use cocoa::base::{id, nil};
 use cocoa::foundation::{NSAutoreleasePool, NSPoint, NSRect, NSSize, NSString};
 use objc::runtime::Class;
 use objc::{msg_send, sel, sel_impl};
+use dispatch::Queue;
 
 pub fn activate_app() {
     unsafe {
         let app: id = msg_send![Class::get("NSApplication").unwrap(), sharedApplication];
         let _: () = msg_send![app, activateIgnoringOtherApps: true];
     }
+}
+
+pub fn show_alert_on_main_thread(title: String, message: String) {
+    Queue::main().exec_async(move || {
+        unsafe {
+            let _pool = NSAutoreleasePool::new(nil);
+            let app: id = msg_send![Class::get("NSApplication").unwrap(), sharedApplication];
+            let _: () = msg_send![app, activateIgnoringOtherApps: true];
+
+            let alert: id = msg_send![Class::get("NSAlert").unwrap(), alloc];
+            let alert: id = msg_send![alert, init];
+            let _: () = msg_send![alert, setAlertStyle: 1];
+
+            let title_ns = NSString::alloc(nil).init_str(&title);
+            let message_ns = NSString::alloc(nil).init_str(&message);
+            let _: () = msg_send![alert, setMessageText: title_ns];
+            let _: () = msg_send![alert, setInformativeText: message_ns];
+            let _: () = msg_send![alert, addButtonWithTitle: NSString::alloc(nil).init_str("OK")];
+
+            let _: isize = msg_send![alert, runModal];
+        }
+    });
 }
 
 pub fn show_alert(title: &str, message: &str) {

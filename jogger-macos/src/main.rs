@@ -6,7 +6,7 @@ mod icon;
 use cocoa::appkit::NSTextField;
 use cocoa::base::{id, nil};
 use cocoa::foundation::{NSAutoreleasePool, NSPoint, NSRect, NSSize, NSString};
-use helpers::{activate_app, show_alert, show_multi_input_alert, show_single_input_alert};
+use helpers::{activate_app, show_alert, show_alert_on_main_thread, show_multi_input_alert, show_single_input_alert};
 use icon::create_template_icon;
 use jogger_core::{submit_timelog, time::string_to_seconds, Preferences, TimeLog};
 use objc::runtime::Class;
@@ -113,22 +113,7 @@ fn show_reminder_dialog(prefs: Arc<Mutex<Preferences>>) {
             1001 => {
                 // Log to Distraction
                 let _ = alert;
-                // Find first PersonalDistraction ticket
-                let prefs_lock = prefs.lock().unwrap();
-                let distraction = prefs_lock
-                    .custom_meetings
-                    .iter()
-                    .flat_map(|p| &p.meetings)
-                    .find(|m| {
-                        matches!(
-                            m.0,
-                            jogger_core::meeting_types::MeetingType::PersonalDistraction
-                        )
-                    })
-                    .map(|m| m.1.clone());
-                drop(prefs_lock);
-
-                if let Some(distraction_ticket) = distraction {
+                if let Some(ticket) = show_meeting_selector_dropdown(Arc::clone(&prefs)) {
                     if let Some(time_str) = show_single_input_alert(
                         "Log Personal Distraction",
                         "Time:",
@@ -137,7 +122,7 @@ fn show_reminder_dialog(prefs: Arc<Mutex<Preferences>>) {
                         let prefs_lock = prefs.lock().unwrap();
                         let prefs_ref = Rc::new(RefCell::new(prefs_lock.clone()));
                         let timelog = TimeLog {
-                            ticket_number: distraction_ticket.clone(),
+                            ticket_number: ticket.clone(),
                             time_spent_seconds: string_to_seconds(&time_str)
                                 .unwrap_or(elapsed as usize),
                             comment: String::new(),
@@ -148,7 +133,7 @@ fn show_reminder_dialog(prefs: Arc<Mutex<Preferences>>) {
                         match submit_timelog(&timelog) {
                             Ok(_) => {
                                 let mut prefs_lock = prefs.lock().unwrap();
-                                prefs_lock.update_timer_state(&distraction_ticket);
+                                prefs_lock.update_timer_state(&ticket);
                                 let _ = prefs_lock.save();
                                 show_alert("Success! ✅", "Time logged successfully!");
                             }
@@ -157,8 +142,6 @@ fn show_reminder_dialog(prefs: Arc<Mutex<Preferences>>) {
                             }
                         }
                     }
-                } else {
-                    show_alert("Error ❌", "No personal distraction ticket configured!");
                 }
             }
             1002 => {
@@ -235,6 +218,8 @@ fn submit_time_log(
         Ok(seconds) => {
             let prefs_clone = prefs.lock().unwrap().clone();
             let ticket_clone = ticket.clone();
+            let prefs_arc = Arc::clone(&prefs);
+            let time_str_clone = time_str.clone();
 
             std::thread::spawn(move || {
                 let prefs_rc = Rc::new(RefCell::new(prefs_clone));
@@ -248,15 +233,21 @@ fn submit_time_log(
 
                 match submit_timelog(&log) {
                     Ok(_) => {
-                        println!("✅ Time logged successfully to {}!", ticket_clone);
-                        show_alert(
-                            "Success! ✅",
-                            &format!("Logged {} to {}", time_str, ticket_clone),
+                        let mut prefs_lock = prefs_arc.lock().unwrap();
+                        prefs_lock.update_timer_state(&ticket_clone);
+                        let _ = prefs_lock.save();
+                        
+                        show_alert_on_main_thread(
+                            "Success! ✅".to_string(),
+                            format!("Logged {} to {}", time_str_clone, ticket_clone),
                         );
                     }
                     Err(e) => {
                         eprintln!("❌ Error: {}", e.msg());
-                        show_alert("Error ❌", &format!("Failed to log time:\n{}", e.msg()));
+                        show_alert_on_main_thread(
+                            "Error ❌".to_string(),
+                            format!("Failed to log time:\n{}", e.msg())
+                        );
                     }
                 }
             });
@@ -272,7 +263,7 @@ fn submit_time_log(
 
 // Helper to show project/meeting selector with dropdowns
 fn show_meeting_selector_dropdown(prefs: Arc<Mutex<Preferences>>) -> Option<String> {
-    activate_app(); // Bring app to front!
+    activate_app();
 
     let projects = prefs.lock().unwrap().custom_meetings.clone();
 
@@ -280,40 +271,27 @@ fn show_meeting_selector_dropdown(prefs: Arc<Mutex<Preferences>>) -> Option<Stri
         return None;
     }
 
+    // Simpler approach: Show project selector first, then ticket selector
     unsafe {
         let _pool = NSAutoreleasePool::new(nil);
 
+        // Step 1: Select project
         let alert: id = msg_send![Class::get("NSAlert").unwrap(), alloc];
         let alert: id = msg_send![alert, init];
-        let _: () = msg_send![alert, setAlertStyle: 1]; // NSAlertStyleInformational
+        let _: () = msg_send![alert, setAlertStyle: 1];
 
-        let title_ns = NSString::alloc(nil).init_str("Log Personal Distraction");
+        let title_ns = NSString::alloc(nil).init_str("Select Project");
         let _: () = msg_send![alert, setMessageText: title_ns];
 
-        // Create container
         let container: id = msg_send![Class::get("NSView").unwrap(), alloc];
         let container: id = msg_send![container, initWithFrame: NSRect::new(
             NSPoint::new(0., 0.),
-            NSSize::new(400., 180.)
+            NSSize::new(400., 60.)
         )];
 
-        // Project dropdown label
-        let project_label: id = msg_send![Class::get("NSTextField").unwrap(), alloc];
-        let project_label: id = msg_send![project_label, initWithFrame: NSRect::new(
-            NSPoint::new(0., 150.),
-            NSSize::new(400., 20.)
-        )];
-        let _: () =
-            msg_send![project_label, setStringValue: NSString::alloc(nil).init_str("Project:")];
-        let _: () = msg_send![project_label, setBezeled: false];
-        let _: () = msg_send![project_label, setDrawsBackground: false];
-        let _: () = msg_send![project_label, setEditable: false];
-        let _: () = msg_send![container, addSubview: project_label];
-
-        // Project dropdown
         let project_popup: id = msg_send![Class::get("NSPopUpButton").unwrap(), alloc];
         let project_popup: id = msg_send![project_popup, initWithFrame: NSRect::new(
-            NSPoint::new(0., 120.),
+            NSPoint::new(0., 20.),
             NSSize::new(400., 25.)
         ) pullsDown: false];
 
@@ -323,58 +301,60 @@ fn show_meeting_selector_dropdown(prefs: Arc<Mutex<Preferences>>) -> Option<Stri
         }
 
         let _: () = msg_send![container, addSubview: project_popup];
-
-        // Ticket dropdown label
-        let ticket_label: id = msg_send![Class::get("NSTextField").unwrap(), alloc];
-        let ticket_label: id = msg_send![ticket_label, initWithFrame: NSRect::new(
-            NSPoint::new(0., 90.),
-            NSSize::new(400., 20.)
-        )];
-        let _: () =
-            msg_send![ticket_label, setStringValue: NSString::alloc(nil).init_str("Ticket:")];
-        let _: () = msg_send![ticket_label, setBezeled: false];
-        let _: () = msg_send![ticket_label, setDrawsBackground: false];
-        let _: () = msg_send![ticket_label, setEditable: false];
-        let _: () = msg_send![container, addSubview: ticket_label];
-
-        // Ticket dropdown
-        let ticket_popup: id = msg_send![Class::get("NSPopUpButton").unwrap(), alloc];
-        let ticket_popup: id = msg_send![ticket_popup, initWithFrame: NSRect::new(
-            NSPoint::new(0., 60.),
-            NSSize::new(400., 25.)
-        ) pullsDown: false];
-
-        // Populate with first project's meetings
-        if let Some(first_project) = projects.first() {
-            for meeting in &first_project.meetings {
-                let item_title =
-                    NSString::alloc(nil).init_str(&format!("{} - {}", meeting.0, meeting.1));
-                let _: () = msg_send![ticket_popup, addItemWithTitle: item_title];
-            }
-        }
-
-        let _: () = msg_send![container, addSubview: ticket_popup];
-
-        // Set up project dropdown to update ticket dropdown
-        // Note: This is simplified - in a full implementation we'd use proper target/action
-
         let _: () = msg_send![alert, setAccessoryView: container];
         let _: () = msg_send![alert, addButtonWithTitle: NSString::alloc(nil).init_str("Continue")];
         let _: () = msg_send![alert, addButtonWithTitle: NSString::alloc(nil).init_str("Cancel")];
 
-        // Remove the icon
-
         let response: isize = msg_send![alert, runModal];
 
-        if response == 1000 {
-            let project_idx: isize = msg_send![project_popup, indexOfSelectedItem];
-            let ticket_idx: isize = msg_send![ticket_popup, indexOfSelectedItem];
+        if response != 1000 {
+            return None;
+        }
 
-            if project_idx >= 0 && ticket_idx >= 0 {
-                if let Some(project) = projects.get(project_idx as usize) {
-                    if let Some(meeting) = project.meetings.get(ticket_idx as usize) {
-                        return Some(meeting.1.clone());
-                    }
+        let project_idx: isize = msg_send![project_popup, indexOfSelectedItem];
+        if project_idx < 0 {
+            return None;
+        }
+
+        let selected_project = &projects[project_idx as usize];
+
+        // Step 2: Select ticket from that project
+        let alert2: id = msg_send![Class::get("NSAlert").unwrap(), alloc];
+        let alert2: id = msg_send![alert2, init];
+        let _: () = msg_send![alert2, setAlertStyle: 1];
+
+        let title_ns = NSString::alloc(nil).init_str(&format!("Select Ticket - {}", selected_project.name));
+        let _: () = msg_send![alert2, setMessageText: title_ns];
+
+        let container2: id = msg_send![Class::get("NSView").unwrap(), alloc];
+        let container2: id = msg_send![container2, initWithFrame: NSRect::new(
+            NSPoint::new(0., 0.),
+            NSSize::new(400., 60.)
+        )];
+
+        let ticket_popup: id = msg_send![Class::get("NSPopUpButton").unwrap(), alloc];
+        let ticket_popup: id = msg_send![ticket_popup, initWithFrame: NSRect::new(
+            NSPoint::new(0., 20.),
+            NSSize::new(400., 25.)
+        ) pullsDown: false];
+
+        for meeting in &selected_project.meetings {
+            let item_title = NSString::alloc(nil).init_str(&format!("{} - {}", meeting.0, meeting.1));
+            let _: () = msg_send![ticket_popup, addItemWithTitle: item_title];
+        }
+
+        let _: () = msg_send![container2, addSubview: ticket_popup];
+        let _: () = msg_send![alert2, setAccessoryView: container2];
+        let _: () = msg_send![alert2, addButtonWithTitle: NSString::alloc(nil).init_str("Continue")];
+        let _: () = msg_send![alert2, addButtonWithTitle: NSString::alloc(nil).init_str("Cancel")];
+
+        let response2: isize = msg_send![alert2, runModal];
+
+        if response2 == 1000 {
+            let ticket_idx: isize = msg_send![ticket_popup, indexOfSelectedItem];
+            if ticket_idx >= 0 {
+                if let Some(meeting) = selected_project.meetings.get(ticket_idx as usize) {
+                    return Some(meeting.1.clone());
                 }
             }
         }
@@ -587,6 +567,15 @@ fn main() {
     println!("✨ Look for Gerald the Gentleman Runner in your menu bar!");
 
     let prefs = Arc::new(Mutex::new(Preferences::load().unwrap_or_default()));
+
+    // Initialize timer if this is first run
+    {
+        let mut prefs_lock = prefs.lock().unwrap();
+        if prefs_lock.timer_state.last_log_time.is_none() {
+            prefs_lock.timer_state.last_log_time = Some(OffsetDateTime::now_utc().unix_timestamp());
+            let _ = prefs_lock.save();
+        }
+    }
 
     let event_loop: EventLoop<UserEvent> = EventLoop::with_user_event().build().unwrap();
 
