@@ -87,9 +87,9 @@ cat > "${CONTENTS_DIR}/Info.plist" << EOF
     <key>CFBundleIconFile</key>
     <string>${ICON_NAME}</string>
     <key>CFBundleVersion</key>
-    <string>0.3.4</string>
+    <string>0.3.5</string>
     <key>CFBundleShortVersionString</key>
-    <string>0.3.4</string>
+    <string>0.3.5</string>
     <key>LSUIElement</key>
     <true/>
 </dict>
