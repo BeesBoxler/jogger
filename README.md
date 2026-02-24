@@ -111,6 +111,10 @@ Notes:
 
 ## macOS Auto Start at Login
 
+If installed via Homebrew cask, Jogger now auto-registers a LaunchAgent during install/upgrade.
+
+Manual setup (non-brew installs):
+
 ```bash
 ./install-launchagent.sh
 ```

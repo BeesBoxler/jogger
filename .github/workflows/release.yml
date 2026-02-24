@@ -203,6 +203,40 @@ jobs:
             app "Jogger.app"
 
             postflight do
+              plist_path = "#{Dir.home}/Library/LaunchAgents/com.jogger.macos.plist"
+              plist_contents = <<~PLIST
+                <?xml version="1.0" encoding="UTF-8"?>
+                <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+                <plist version="1.0">
+                <dict>
+                    <key>Label</key>
+                    <string>com.jogger.macos</string>
+                    <key>ProgramArguments</key>
+                    <array>
+                        <string>/usr/bin/open</string>
+                        <string>#{appdir}/Jogger.app</string>
+                    </array>
+                    <key>RunAtLoad</key>
+                    <true/>
+                    <key>KeepAlive</key>
+                    <false/>
+                </dict>
+                </plist>
+              PLIST
+
+              system_command "/bin/mkdir",
+                args: ["-p", "#{Dir.home}/Library/LaunchAgents"],
+                sudo: false
+              File.write(plist_path, plist_contents)
+
+              system_command "/bin/launchctl",
+                args: ["bootout", "gui/#{Process.uid}", plist_path],
+                sudo: false,
+                print_stderr: false
+              system_command "/bin/launchctl",
+                args: ["bootstrap", "gui/#{Process.uid}", plist_path],
+                sudo: false
+
               system_command "/usr/bin/xattr",
                 args: ["-dr", "com.apple.quarantine", "#{appdir}/Jogger.app"],
                 sudo: false

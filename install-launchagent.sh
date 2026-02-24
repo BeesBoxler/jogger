@@ -1,31 +1,37 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
-# Install jogger-macos as a LaunchAgent to start at login
+# Install jogger-macos as a LaunchAgent to start at login.
+# Usage:
+#   ./install-launchagent.sh
+#   ./install-launchagent.sh /Applications/Jogger.app
 
 PLIST_NAME="com.jogger.macos.plist"
 PLIST_PATH="$HOME/Library/LaunchAgents/$PLIST_NAME"
-APP_PATH="$HOME/Applications/Jogger.app"
 
-# Check if app bundle exists
-if [ ! -d "$APP_PATH" ]; then
-    echo "❌ Jogger.app not found at $APP_PATH"
+if [ "${1:-}" != "" ]; then
+    APP_PATH="$1"
+elif [ -d "/Applications/Jogger.app" ]; then
+    APP_PATH="/Applications/Jogger.app"
+elif [ -d "$HOME/Applications/Jogger.app" ]; then
+    APP_PATH="$HOME/Applications/Jogger.app"
+else
+    echo "❌ Jogger.app not found."
     echo ""
-    echo "Please install Jogger.app first:"
-    echo "  1. Download from GitHub releases"
-    echo "  2. Extract: tar xzf jogger-macos-*.tar.gz"
-    echo "  3. Move to Applications: mv Jogger.app ~/Applications/"
+    echo "Expected one of:"
+    echo "  - /Applications/Jogger.app"
+    echo "  - $HOME/Applications/Jogger.app"
     echo ""
-    echo "Or build locally:"
-    echo "  ./build-app-bundle.sh"
-    echo "  mv target/release/Jogger.app ~/Applications/"
+    echo "Install with Homebrew (recommended):"
+    echo "  brew install --cask beesboxler/jogger/jogger-macos"
+    echo ""
+    echo "Or pass an explicit path:"
+    echo "  ./install-launchagent.sh /path/to/Jogger.app"
     exit 1
 fi
 
-# Create LaunchAgents directory if it doesn't exist
 mkdir -p "$HOME/Library/LaunchAgents"
 
-# Create the plist file
 cat > "$PLIST_PATH" << EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -55,9 +61,12 @@ cat > "$PLIST_PATH" << EOF
 </plist>
 EOF
 
-# Load the LaunchAgent
-launchctl unload "$PLIST_PATH" 2>/dev/null || true
-launchctl load "$PLIST_PATH"
+# Load/reload the LaunchAgent (modern launchctl first, with legacy fallback).
+launchctl bootout "gui/$(id -u)" "$PLIST_PATH" 2>/dev/null || true
+launchctl bootstrap "gui/$(id -u)" "$PLIST_PATH" 2>/dev/null || {
+    launchctl unload "$PLIST_PATH" 2>/dev/null || true
+    launchctl load "$PLIST_PATH"
+}
 
 echo "✅ Jogger installed as LaunchAgent"
 echo "📍 Plist: $PLIST_PATH"
