@@ -40,6 +40,16 @@ pub fn create_issue_input_dialog(prefs: PrefRef, width: usize) -> Box<dyn View> 
 pub fn create_meetings_dialog(prefs: PrefRef, title: Option<&str>, width: usize) -> Box<dyn View> {
     let mut projects_list = SelectView::new();
     let projects = prefs.borrow().custom_meetings.clone();
+    if projects.is_empty() {
+        return Box::from(
+            Dialog::around(TextView::new("No configured meetings/projects. Open Setup first."))
+                .button("Okay", |c| {
+                    c.pop_layer();
+                })
+                .fixed_width(width),
+        );
+    }
+
     let height = std::cmp::max(
         projects.iter().map(|p| p.meetings.len()).max(),
         Some(projects.len()),

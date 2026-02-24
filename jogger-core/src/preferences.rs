@@ -175,7 +175,7 @@ impl Preferences {
     pub fn get_elapsed_seconds(&self) -> u32 {
         if let Some(last_time) = self.timer_state.last_log_time {
             let now = OffsetDateTime::now_utc();
-            let elapsed = (now.unix_timestamp() - last_time) as u32;
+            let elapsed = (now.unix_timestamp() - last_time).max(0) as u32;
             elapsed + self.timer_state.accumulated_seconds
         } else {
             0
@@ -186,5 +186,43 @@ impl Preferences {
 impl Default for Preferences {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Preferences;
+    use time::OffsetDateTime;
+
+    fn today_string() -> String {
+        let now = OffsetDateTime::now_utc();
+        format!("{:04}-{:02}-{:02}", now.year(), now.month() as u8, now.day())
+    }
+
+    #[test]
+    fn elapsed_seconds_clamps_when_last_log_is_in_future() {
+        let mut prefs = Preferences::new();
+        prefs.timer_state.accumulated_seconds = 120;
+        prefs.timer_state.last_log_time = Some(OffsetDateTime::now_utc().unix_timestamp() + 600);
+
+        assert_eq!(prefs.get_elapsed_seconds(), 120);
+    }
+
+    #[test]
+    fn should_reset_timer_when_last_date_is_old() {
+        let mut prefs = Preferences::new();
+        prefs.timer_state.last_log_time = Some(OffsetDateTime::now_utc().unix_timestamp());
+        prefs.timer_state.last_log_date = Some("1970-01-01".to_string());
+
+        assert!(prefs.should_reset_timer());
+    }
+
+    #[test]
+    fn should_not_reset_timer_for_recent_same_day_log() {
+        let mut prefs = Preferences::new();
+        prefs.timer_state.last_log_time = Some(OffsetDateTime::now_utc().unix_timestamp());
+        prefs.timer_state.last_log_date = Some(today_string());
+
+        assert!(!prefs.should_reset_timer());
     }
 }

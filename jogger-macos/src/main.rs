@@ -6,16 +6,22 @@ mod icon;
 use cocoa::appkit::NSTextField;
 use cocoa::base::{id, nil};
 use cocoa::foundation::{NSAutoreleasePool, NSPoint, NSRect, NSSize, NSString};
-use helpers::{activate_app, show_alert, show_alert_on_main_thread, show_multi_input_alert, show_single_input_alert};
+use helpers::{
+    activate_app, show_alert, show_alert_on_main_thread, show_multi_input_alert,
+    show_single_input_alert,
+};
 use icon::create_template_icon;
 use jogger_core::{submit_timelog, time::string_to_seconds, Preferences, TimeLog};
 use objc::runtime::Class;
 use objc::{msg_send, sel, sel_impl};
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::sync::{Arc, Mutex};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc, Mutex,
+};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use time::OffsetDateTime;
 use tray_icon::{
     menu::{Menu, MenuEvent, MenuItem},
@@ -44,14 +50,23 @@ fn show_reminder_dialog(prefs: Arc<Mutex<Preferences>>) {
         prefs_lock.timer_state.last_log_time = None;
     }
 
-    let elapsed = prefs_lock.get_elapsed_seconds();
+    let accumulated = prefs_lock.timer_state.accumulated_seconds;
+    let since_last_log = prefs_lock
+        .timer_state
+        .last_log_time
+        .map(|last_time| {
+            let now = OffsetDateTime::now_utc().unix_timestamp();
+            (now - last_time).max(0) as u32
+        })
+        .unwrap_or(0);
+    let elapsed = since_last_log + accumulated;
     let minutes = elapsed / 60;
 
-    let message = if prefs_lock.timer_state.accumulated_seconds > 0 {
+    let message = if accumulated > 0 {
         format!(
-            "⏰ Time to log!\n\n{} minutes elapsed\n(+{} minutes accumulated)",
-            minutes,
-            prefs_lock.timer_state.accumulated_seconds / 60
+            "⏰ Time to log!\n\n{} minutes since last prompt\n(+{} minutes accumulated)",
+            since_last_log / 60,
+            accumulated / 60
         )
     } else {
         format!("⏰ Time to log!\n\n{} minutes elapsed", minutes)
@@ -177,7 +192,7 @@ fn show_reminder_dialog(prefs: Arc<Mutex<Preferences>>) {
                 // Cancel - accumulate time
                 let _ = alert;
                 let mut prefs_lock = prefs.lock().unwrap();
-                prefs_lock.timer_state.accumulated_seconds += elapsed;
+                prefs_lock.timer_state.accumulated_seconds = elapsed;
                 prefs_lock.timer_state.last_log_time =
                     Some(OffsetDateTime::now_utc().unix_timestamp());
                 let _ = prefs_lock.save();
@@ -236,7 +251,7 @@ fn submit_time_log(
                         let mut prefs_lock = prefs_arc.lock().unwrap();
                         prefs_lock.update_timer_state(&ticket_clone);
                         let _ = prefs_lock.save();
-                        
+
                         show_alert_on_main_thread(
                             "Success! ✅".to_string(),
                             format!("Logged {} to {}", time_str_clone, ticket_clone),
@@ -246,7 +261,7 @@ fn submit_time_log(
                         eprintln!("❌ Error: {}", e.msg());
                         show_alert_on_main_thread(
                             "Error ❌".to_string(),
-                            format!("Failed to log time:\n{}", e.msg())
+                            format!("Failed to log time:\n{}", e.msg()),
                         );
                     }
                 }
@@ -323,7 +338,8 @@ fn show_meeting_selector_dropdown(prefs: Arc<Mutex<Preferences>>) -> Option<Stri
         let alert2: id = msg_send![alert2, init];
         let _: () = msg_send![alert2, setAlertStyle: 1];
 
-        let title_ns = NSString::alloc(nil).init_str(&format!("Select Ticket - {}", selected_project.name));
+        let title_ns =
+            NSString::alloc(nil).init_str(&format!("Select Ticket - {}", selected_project.name));
         let _: () = msg_send![alert2, setMessageText: title_ns];
 
         let container2: id = msg_send![Class::get("NSView").unwrap(), alloc];
@@ -339,13 +355,15 @@ fn show_meeting_selector_dropdown(prefs: Arc<Mutex<Preferences>>) -> Option<Stri
         ) pullsDown: false];
 
         for meeting in &selected_project.meetings {
-            let item_title = NSString::alloc(nil).init_str(&format!("{} - {}", meeting.0, meeting.1));
+            let item_title =
+                NSString::alloc(nil).init_str(&format!("{} - {}", meeting.0, meeting.1));
             let _: () = msg_send![ticket_popup, addItemWithTitle: item_title];
         }
 
         let _: () = msg_send![container2, addSubview: ticket_popup];
         let _: () = msg_send![alert2, setAccessoryView: container2];
-        let _: () = msg_send![alert2, addButtonWithTitle: NSString::alloc(nil).init_str("Continue")];
+        let _: () =
+            msg_send![alert2, addButtonWithTitle: NSString::alloc(nil).init_str("Continue")];
         let _: () = msg_send![alert2, addButtonWithTitle: NSString::alloc(nil).init_str("Cancel")];
 
         let response2: isize = msg_send![alert2, runModal];
@@ -604,30 +622,49 @@ fn main() {
         .unwrap();
 
     let menu_channel = MenuEvent::receiver();
+    let reminder_dialog_pending = Arc::new(AtomicBool::new(false));
 
     // Spawn background timer thread
     let proxy = event_loop.create_proxy();
     let prefs_timer = Arc::clone(&prefs);
+    let pending_timer = Arc::clone(&reminder_dialog_pending);
+    let mut last_tick = Instant::now();
     thread::spawn(move || loop {
         thread::sleep(Duration::from_secs(60)); // Check every minute
+        let now_tick = Instant::now();
+        let tick_gap = now_tick.duration_since(last_tick);
+        last_tick = now_tick;
+
+        // If the app was suspended/asleep, don't count that wall-clock time as loggable.
+        if tick_gap > Duration::from_secs(90) {
+            let mut prefs = prefs_timer.lock().unwrap();
+            if prefs.reminder_settings.enabled {
+                prefs.timer_state.last_log_time = Some(OffsetDateTime::now_utc().unix_timestamp());
+                let _ = prefs.save();
+            }
+            continue;
+        }
 
         let prefs = prefs_timer.lock().unwrap();
         if prefs.reminder_settings.enabled {
             // Only check elapsed time since last log, not accumulated
             let elapsed = if let Some(last_time) = prefs.timer_state.last_log_time {
                 let now = OffsetDateTime::now_utc();
-                (now.unix_timestamp() - last_time) as u32
+                (now.unix_timestamp() - last_time).max(0) as u32
             } else {
                 0
             };
             let interval_seconds = prefs.reminder_settings.interval_minutes * 60;
 
-            if elapsed >= interval_seconds {
-                let _ = proxy.send_event(UserEvent::ReminderTick);
+            if elapsed >= interval_seconds && !pending_timer.swap(true, Ordering::SeqCst) {
+                if proxy.send_event(UserEvent::ReminderTick).is_err() {
+                    pending_timer.store(false, Ordering::SeqCst);
+                }
             }
         }
     });
 
+    let pending_event = Arc::clone(&reminder_dialog_pending);
     #[allow(deprecated)]
     let _ = event_loop.run(move |event, elwt| {
         elwt.set_control_flow(ControlFlow::Wait);
@@ -635,6 +672,7 @@ fn main() {
         // Handle timer events
         if let winit::event::Event::UserEvent(UserEvent::ReminderTick) = event {
             show_reminder_dialog(Arc::clone(&prefs));
+            pending_event.store(false, Ordering::SeqCst);
             return;
         }
 
