@@ -75,6 +75,7 @@ fn show_reminder_dialog(prefs: Arc<Mutex<Preferences>>) {
         let now = OffsetDateTime::now_utc();
         prefs_lock.timer_state.last_log_time = Some(now.unix_timestamp());
         prefs_lock.timer_state.last_log_date = Some(today_string(now));
+        prefs_lock.timer_state.reminder_snoozed_until = None;
         let _ = prefs_lock.save();
         return;
     }
@@ -224,9 +225,12 @@ fn show_reminder_dialog(prefs: Arc<Mutex<Preferences>>) {
                 // Cancel - accumulate time
                 let _ = alert;
                 let mut prefs_lock = prefs.lock().unwrap();
+                let now = OffsetDateTime::now_utc().unix_timestamp();
                 prefs_lock.timer_state.accumulated_seconds = elapsed;
-                prefs_lock.timer_state.last_log_time =
-                    Some(OffsetDateTime::now_utc().unix_timestamp());
+                prefs_lock.timer_state.last_log_time = Some(now);
+                prefs_lock.timer_state.reminder_snoozed_until = Some(
+                    now + (prefs_lock.reminder_settings.interval_minutes as i64 * 60),
+                );
                 let _ = prefs_lock.save();
             }
         }
@@ -687,6 +691,13 @@ fn main() {
 
         let prefs = prefs_timer.lock().unwrap();
         if prefs.reminder_settings.enabled {
+            let now = OffsetDateTime::now_utc().unix_timestamp();
+            if let Some(snoozed_until) = prefs.timer_state.reminder_snoozed_until {
+                if now < snoozed_until {
+                    continue;
+                }
+            }
+
             let elapsed = prefs.get_elapsed_seconds();
 
             if should_trigger_reminder(elapsed, prefs.reminder_settings.interval_minutes)

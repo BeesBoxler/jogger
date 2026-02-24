@@ -31,6 +31,7 @@ pub struct TimerState {
     pub accumulated_seconds: u32,
     pub last_ticket: Option<String>,
     pub last_log_date: Option<String>, // YYYY-MM-DD for daily reset
+    pub reminder_snoozed_until: Option<i64>, // Unix timestamp
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -169,6 +170,7 @@ impl Preferences {
             now.day()
         ));
         self.timer_state.accumulated_seconds = 0; // Reset after logging
+        self.timer_state.reminder_snoozed_until = None;
     }
 
     // Get elapsed time since last log
