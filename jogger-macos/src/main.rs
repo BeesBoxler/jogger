@@ -51,7 +51,12 @@ fn should_trigger_reminder(total_elapsed: u32, interval_minutes: u32) -> bool {
 }
 
 fn today_string(now: OffsetDateTime) -> String {
-    format!("{:04}-{:02}-{:02}", now.year(), now.month() as u8, now.day())
+    format!(
+        "{:04}-{:02}-{:02}",
+        now.year(),
+        now.month() as u8,
+        now.day()
+    )
 }
 
 // Helper to create empty icon for alerts
