@@ -34,6 +34,14 @@ enum UserEvent {
     ReminderTick,
 }
 
+fn carry_elapsed_across_suspend(total_elapsed: u32, tick_gap: Duration, tick_interval: Duration) -> u32 {
+    let sleep_seconds = tick_gap
+        .saturating_sub(tick_interval)
+        .as_secs()
+        .min(u32::MAX as u64) as u32;
+    total_elapsed.saturating_sub(sleep_seconds)
+}
+
 // Helper to create empty icon for alerts
 
 // Helper to activate app and bring to front
@@ -629,17 +637,22 @@ fn main() {
     let prefs_timer = Arc::clone(&prefs);
     let pending_timer = Arc::clone(&reminder_dialog_pending);
     let mut last_tick = Instant::now();
+    let tick_interval = Duration::from_secs(60);
     thread::spawn(move || loop {
-        thread::sleep(Duration::from_secs(60)); // Check every minute
+        thread::sleep(tick_interval); // Check every minute
         let now_tick = Instant::now();
         let tick_gap = now_tick.duration_since(last_tick);
         last_tick = now_tick;
 
-        // If the app was suspended/asleep, don't count that wall-clock time as loggable.
+        // If the app was suspended/asleep, keep pre-sleep work but discard sleep time.
         if tick_gap > Duration::from_secs(90) {
             let mut prefs = prefs_timer.lock().unwrap();
             if prefs.reminder_settings.enabled {
-                prefs.timer_state.last_log_time = Some(OffsetDateTime::now_utc().unix_timestamp());
+                let now = OffsetDateTime::now_utc().unix_timestamp();
+                let elapsed = prefs.get_elapsed_seconds();
+                let preserved = carry_elapsed_across_suspend(elapsed, tick_gap, tick_interval);
+                prefs.timer_state.accumulated_seconds = preserved;
+                prefs.timer_state.last_log_time = Some(now);
                 let _ = prefs.save();
             }
             continue;
@@ -704,4 +717,34 @@ fn main() {
             }
         }
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::carry_elapsed_across_suspend;
+    use std::time::Duration;
+
+    #[test]
+    fn preserves_pre_sleep_elapsed_time() {
+        let total_elapsed = 27 * 60 + 2 * 60 * 60; // 27m active + 2h sleep
+        let tick_gap = Duration::from_secs(2 * 60 * 60 + 60);
+        let adjusted = carry_elapsed_across_suspend(
+            total_elapsed as u32,
+            tick_gap,
+            Duration::from_secs(60),
+        );
+
+        assert_eq!(adjusted, 27 * 60);
+    }
+
+    #[test]
+    fn saturates_at_zero_when_gap_exceeds_elapsed() {
+        let adjusted = carry_elapsed_across_suspend(
+            30,
+            Duration::from_secs(10 * 60),
+            Duration::from_secs(60),
+        );
+
+        assert_eq!(adjusted, 0);
+    }
 }
