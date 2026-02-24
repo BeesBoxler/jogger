@@ -31,9 +31,9 @@ cat > "${CONTENTS_DIR}/Info.plist" << EOF
     <key>CFBundleName</key>
     <string>${APP_NAME}</string>
     <key>CFBundleVersion</key>
-    <string>0.3.2</string>
+    <string>0.3.3</string>
     <key>CFBundleShortVersionString</key>
-    <string>0.3.2</string>
+    <string>0.3.3</string>
     <key>LSUIElement</key>
     <true/>
 </dict>

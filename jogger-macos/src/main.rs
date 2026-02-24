@@ -34,7 +34,11 @@ enum UserEvent {
     ReminderTick,
 }
 
-fn carry_elapsed_across_suspend(total_elapsed: u32, tick_gap: Duration, tick_interval: Duration) -> u32 {
+fn carry_elapsed_across_suspend(
+    total_elapsed: u32,
+    tick_gap: Duration,
+    tick_interval: Duration,
+) -> u32 {
     let sleep_seconds = tick_gap
         .saturating_sub(tick_interval)
         .as_secs()
@@ -728,22 +732,16 @@ mod tests {
     fn preserves_pre_sleep_elapsed_time() {
         let total_elapsed = 27 * 60 + 2 * 60 * 60; // 27m active + 2h sleep
         let tick_gap = Duration::from_secs(2 * 60 * 60 + 60);
-        let adjusted = carry_elapsed_across_suspend(
-            total_elapsed as u32,
-            tick_gap,
-            Duration::from_secs(60),
-        );
+        let adjusted =
+            carry_elapsed_across_suspend(total_elapsed as u32, tick_gap, Duration::from_secs(60));
 
         assert_eq!(adjusted, 27 * 60);
     }
 
     #[test]
     fn saturates_at_zero_when_gap_exceeds_elapsed() {
-        let adjusted = carry_elapsed_across_suspend(
-            30,
-            Duration::from_secs(10 * 60),
-            Duration::from_secs(60),
-        );
+        let adjusted =
+            carry_elapsed_across_suspend(30, Duration::from_secs(10 * 60), Duration::from_secs(60));
 
         assert_eq!(adjusted, 0);
     }
