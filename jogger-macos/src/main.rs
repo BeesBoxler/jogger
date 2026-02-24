@@ -59,7 +59,9 @@ fn show_reminder_dialog(prefs: Arc<Mutex<Preferences>>) {
     // Check if we should reset
     if prefs_lock.should_reset_timer() {
         prefs_lock.timer_state.accumulated_seconds = 0;
-        prefs_lock.timer_state.last_log_time = None;
+        prefs_lock.timer_state.last_log_time = Some(OffsetDateTime::now_utc().unix_timestamp());
+        let _ = prefs_lock.save();
+        return;
     }
 
     let accumulated = prefs_lock.timer_state.accumulated_seconds;
@@ -72,6 +74,9 @@ fn show_reminder_dialog(prefs: Arc<Mutex<Preferences>>) {
         })
         .unwrap_or(0);
     let elapsed = since_last_log + accumulated;
+    if elapsed == 0 {
+        return;
+    }
     let minutes = elapsed / 60;
 
     let message = if accumulated > 0 {
