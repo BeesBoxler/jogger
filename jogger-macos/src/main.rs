@@ -46,6 +46,10 @@ fn carry_elapsed_across_suspend(
     total_elapsed.saturating_sub(sleep_seconds)
 }
 
+fn should_trigger_reminder(total_elapsed: u32, interval_minutes: u32) -> bool {
+    total_elapsed >= interval_minutes.saturating_mul(60)
+}
+
 // Helper to create empty icon for alerts
 
 // Helper to activate app and bring to front
@@ -669,16 +673,11 @@ fn main() {
 
         let prefs = prefs_timer.lock().unwrap();
         if prefs.reminder_settings.enabled {
-            // Only check elapsed time since last log, not accumulated
-            let elapsed = if let Some(last_time) = prefs.timer_state.last_log_time {
-                let now = OffsetDateTime::now_utc();
-                (now.unix_timestamp() - last_time).max(0) as u32
-            } else {
-                0
-            };
-            let interval_seconds = prefs.reminder_settings.interval_minutes * 60;
+            let elapsed = prefs.get_elapsed_seconds();
 
-            if elapsed >= interval_seconds && !pending_timer.swap(true, Ordering::SeqCst) {
+            if should_trigger_reminder(elapsed, prefs.reminder_settings.interval_minutes)
+                && !pending_timer.swap(true, Ordering::SeqCst)
+            {
                 if proxy.send_event(UserEvent::ReminderTick).is_err() {
                     pending_timer.store(false, Ordering::SeqCst);
                 }
@@ -730,7 +729,7 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use super::carry_elapsed_across_suspend;
+    use super::{carry_elapsed_across_suspend, should_trigger_reminder};
     use std::time::Duration;
 
     #[test]
@@ -749,5 +748,15 @@ mod tests {
             carry_elapsed_across_suspend(30, Duration::from_secs(10 * 60), Duration::from_secs(60));
 
         assert_eq!(adjusted, 0);
+    }
+
+    #[test]
+    fn reminder_triggers_when_accumulated_meets_interval() {
+        assert!(should_trigger_reminder(27 * 60 + 3 * 60, 30));
+    }
+
+    #[test]
+    fn reminder_does_not_trigger_below_interval() {
+        assert!(!should_trigger_reminder(29 * 60, 30));
     }
 }

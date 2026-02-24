@@ -201,6 +201,12 @@ jobs:
             homepage "https://github.com/${OWNER}/${REPO}"
 
             app "Jogger.app"
+
+            postflight do
+              system_command "/usr/bin/xattr",
+                args: ["-dr", "com.apple.quarantine", "#{appdir}/Jogger.app"],
+                sudo: false
+            end
           end
           RUBY
 
