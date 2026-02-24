@@ -226,20 +226,24 @@ jobs:
 
               system_command "/bin/mkdir",
                 args: ["-p", "#{Dir.home}/Library/LaunchAgents"],
-                sudo: false
+                sudo: false,
+                must_succeed: false
               File.write(plist_path, plist_contents)
 
               system_command "/bin/launchctl",
                 args: ["bootout", "gui/#{Process.uid}", plist_path],
                 sudo: false,
-                print_stderr: false
+                print_stderr: false,
+                must_succeed: false
               system_command "/bin/launchctl",
                 args: ["bootstrap", "gui/#{Process.uid}", plist_path],
-                sudo: false
+                sudo: false,
+                must_succeed: false
 
               system_command "/usr/bin/xattr",
                 args: ["-dr", "com.apple.quarantine", "#{appdir}/Jogger.app"],
-                sudo: false
+                sudo: false,
+                must_succeed: false
             end
           end
           RUBY
