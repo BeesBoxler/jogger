@@ -24,7 +24,14 @@ For your colleagues: a full-access key will work if your Jira setup requires bro
 
 ## Install
 
-### Option A: Download from GitHub Releases (recommended for colleagues)
+### Preferred (macOS): Homebrew Cask
+
+```bash
+brew install --cask beesboxler/jogger/jogger-macos
+xattr -dr com.apple.quarantine /Applications/Jogger.app
+```
+
+### Option A: Download from GitHub Releases
 
 - macOS: download `jogger-macos-<apple-target>.zip`, unzip, move `Jogger.app` to `~/Applications` or `/Applications`
 - Linux: download `jogger-<linux-target>.tar.gz`, extract, put binary somewhere on `PATH`
