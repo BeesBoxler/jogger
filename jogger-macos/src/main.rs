@@ -50,6 +50,10 @@ fn should_trigger_reminder(total_elapsed: u32, interval_minutes: u32) -> bool {
     total_elapsed >= interval_minutes.saturating_mul(60)
 }
 
+fn today_string(now: OffsetDateTime) -> String {
+    format!("{:04}-{:02}-{:02}", now.year(), now.month() as u8, now.day())
+}
+
 // Helper to create empty icon for alerts
 
 // Helper to activate app and bring to front
@@ -63,7 +67,9 @@ fn show_reminder_dialog(prefs: Arc<Mutex<Preferences>>) {
     // Check if we should reset
     if prefs_lock.should_reset_timer() {
         prefs_lock.timer_state.accumulated_seconds = 0;
-        prefs_lock.timer_state.last_log_time = Some(OffsetDateTime::now_utc().unix_timestamp());
+        let now = OffsetDateTime::now_utc();
+        prefs_lock.timer_state.last_log_time = Some(now.unix_timestamp());
+        prefs_lock.timer_state.last_log_date = Some(today_string(now));
         let _ = prefs_lock.save();
         return;
     }
@@ -611,7 +617,9 @@ fn main() {
     {
         let mut prefs_lock = prefs.lock().unwrap();
         if prefs_lock.timer_state.last_log_time.is_none() {
-            prefs_lock.timer_state.last_log_time = Some(OffsetDateTime::now_utc().unix_timestamp());
+            let now = OffsetDateTime::now_utc();
+            prefs_lock.timer_state.last_log_time = Some(now.unix_timestamp());
+            prefs_lock.timer_state.last_log_date = Some(today_string(now));
             let _ = prefs_lock.save();
         }
     }
@@ -661,11 +669,12 @@ fn main() {
         if tick_gap > Duration::from_secs(90) {
             let mut prefs = prefs_timer.lock().unwrap();
             if prefs.reminder_settings.enabled {
-                let now = OffsetDateTime::now_utc().unix_timestamp();
+                let now = OffsetDateTime::now_utc();
                 let elapsed = prefs.get_elapsed_seconds();
                 let preserved = carry_elapsed_across_suspend(elapsed, tick_gap, tick_interval);
                 prefs.timer_state.accumulated_seconds = preserved;
-                prefs.timer_state.last_log_time = Some(now);
+                prefs.timer_state.last_log_time = Some(now.unix_timestamp());
+                prefs.timer_state.last_log_date = Some(today_string(now));
                 let _ = prefs.save();
             }
             continue;
