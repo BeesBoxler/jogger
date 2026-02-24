@@ -186,15 +186,42 @@ jobs:
           sha_arm="$(shasum -a 256 "$tmp_dir/arm.zip" | awk '{print $1}')"
           sha_intel="$(shasum -a 256 "$tmp_dir/intel.zip" | awk '{print $1}')"
 
+          cask_path="homebrew-jogger/Casks/jogger-macos.rb"
+          current_version=""
+          current_base=""
+          current_rev="0"
+          current_sha_arm=""
+          current_sha_intel=""
+
+          if [ -f "$cask_path" ]; then
+            current_version="$(sed -n 's/^[[:space:]]*version "\(.*\)"$/\1/p' "$cask_path" | head -n1)"
+            current_base="${current_version%%,*}"
+            if [[ "$current_version" == *","* ]]; then
+              current_rev="${current_version##*,}"
+            fi
+            current_sha_arm="$(sed -n 's/^[[:space:]]*sha256 arm: "\(.*\)", intel: ".*"$/\1/p' "$cask_path" | head -n1)"
+            current_sha_intel="$(sed -n 's/^[[:space:]]*sha256 arm: ".*", intel: "\(.*\)"$/\1/p' "$cask_path" | head -n1)"
+          fi
+
+          cask_version="$VERSION"
+          if [ "$current_base" = "$VERSION" ]; then
+            if [ "$current_sha_arm" != "$sha_arm" ] || [ "$current_sha_intel" != "$sha_intel" ]; then
+              next_rev=$((current_rev + 1))
+              cask_version="${VERSION},${next_rev}"
+            else
+              cask_version="$current_version"
+            fi
+          fi
+
           cat > homebrew-jogger/Casks/jogger-macos.rb <<RUBY
           cask "jogger-macos" do
-            version "${VERSION}"
+            version "${cask_version}"
 
             arch arm: "aarch64", intel: "x86_64"
 
             sha256 arm: "${sha_arm}", intel: "${sha_intel}"
 
-            url "https://github.com/${OWNER}/${REPO}/releases/download/v#{version}/jogger-macos-#{arch}-apple-darwin.zip"
+            url "https://github.com/${OWNER}/${REPO}/releases/download/v#{version.before_comma}/jogger-macos-#{arch}-apple-darwin.zip"
             name "Jogger"
             desc "Simple Jira time logger"
             homepage "https://github.com/${OWNER}/${REPO}"
