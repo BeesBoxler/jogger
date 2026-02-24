@@ -196,7 +196,12 @@ mod tests {
 
     fn today_string() -> String {
         let now = OffsetDateTime::now_utc();
-        format!("{:04}-{:02}-{:02}", now.year(), now.month() as u8, now.day())
+        format!(
+            "{:04}-{:02}-{:02}",
+            now.year(),
+            now.month() as u8,
+            now.day()
+        )
     }
 
     #[test]

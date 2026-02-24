@@ -42,11 +42,13 @@ pub fn create_meetings_dialog(prefs: PrefRef, title: Option<&str>, width: usize)
     let projects = prefs.borrow().custom_meetings.clone();
     if projects.is_empty() {
         return Box::from(
-            Dialog::around(TextView::new("No configured meetings/projects. Open Setup first."))
-                .button("Okay", |c| {
-                    c.pop_layer();
-                })
-                .fixed_width(width),
+            Dialog::around(TextView::new(
+                "No configured meetings/projects. Open Setup first.",
+            ))
+            .button("Okay", |c| {
+                c.pop_layer();
+            })
+            .fixed_width(width),
         );
     }
 
