@@ -228,9 +228,8 @@ fn show_reminder_dialog(prefs: Arc<Mutex<Preferences>>) {
                 let now = OffsetDateTime::now_utc().unix_timestamp();
                 prefs_lock.timer_state.accumulated_seconds = elapsed;
                 prefs_lock.timer_state.last_log_time = Some(now);
-                prefs_lock.timer_state.reminder_snoozed_until = Some(
-                    now + (prefs_lock.reminder_settings.interval_minutes as i64 * 60),
-                );
+                prefs_lock.timer_state.reminder_snoozed_until =
+                    Some(now + (prefs_lock.reminder_settings.interval_minutes as i64 * 60));
                 let _ = prefs_lock.save();
             }
         }
